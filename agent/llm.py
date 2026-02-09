@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 DEFAULT_MODEL_MAP = {
-    "knowledge_processor": "gpt-3.5-turbo-16k",
+    "knowledge_processor": "gpt-4o-mini",  # Upgraded from gpt-3.5-turbo-16k for better extraction
     "gap_analyzer": "gpt-3.5-turbo",
     "conversation_agent": "gpt-4o",
     "document_generator": "gpt-4o-mini",

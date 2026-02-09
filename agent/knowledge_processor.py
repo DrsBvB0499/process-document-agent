@@ -250,9 +250,11 @@ class KnowledgeProcessor:
         self, filename: str, content: str, file_type: str
     ) -> str:
         """Build a prompt for the LLM to extract structured information."""
-        truncated_content = content[:4000]  # Limit to avoid token explosion
+        # Increased from 4000 to 50000 chars to capture more content
+        # This allows ~12,500 tokens, suitable for gpt-4o
+        truncated_content = content[:50000]
 
-        return f"""Analyze the following file and extract structured information.
+        return f"""You are analyzing a process documentation file to extract ALL relevant information.
 
 File: {filename}
 Type: {file_type}
@@ -260,21 +262,54 @@ Type: {file_type}
 Content:
 {truncated_content}
 
-{"..." if len(content) > 4000 else ""}
+{"..." if len(content) > 50000 else ""}
+
+CRITICAL INSTRUCTIONS:
+1. **EXTRACT EVERYTHING** - Do not skip tables, labeled fields, or structured data
+2. **PROCESS OWNER** - If there's a field/cell labeled "process owner", "owner", or similar, extract the name!
+3. **TEAMS & ROLES** - Extract all team names, roles, and responsibilities mentioned
+4. **SIPOC ELEMENTS** - Specifically look for:
+   - Suppliers: Who provides information/materials to start the process?
+   - Inputs: What information/materials are needed?
+   - Outputs: What is produced/delivered?
+   - Customers: Who receives the outputs?
+5. **PROCESS STEPS** - Extract each step with:
+   - Step name/description
+   - Who performs it (performer/role)
+   - What systems are used
+   - Any decisions or branching logic
+6. **METRICS** - Extract numbers, measurements, volumes, times, costs
+7. **TABLES** - Extract data from tables row by row with labels
+8. **EXCEPTIONS** - Any special cases, errors, or edge cases mentioned
 
 Extract and return ONLY a valid JSON object (no markdown, no code block) with this exact schema:
 {{
   "facts": [
-    {{"category": "string", "fact": "string", "confidence": 0.8}}
+    {{"category": "process_owner", "fact": "Owner name: [SPECIFIC NAME FROM DOCUMENT]", "confidence": 1.0}},
+    {{"category": "suppliers", "fact": "[WHO] provides [WHAT]", "confidence": 0.9}},
+    {{"category": "inputs", "fact": "[SPECIFIC INPUT] from [SOURCE]", "confidence": 0.9}},
+    {{"category": "outputs", "fact": "[SPECIFIC OUTPUT] to [DESTINATION]", "confidence": 0.9}},
+    {{"category": "customers", "fact": "[WHO] receives [WHAT]", "confidence": 0.9}},
+    {{"category": "process_steps", "fact": "Step X: [ACTION] by [PERFORMER] using [SYSTEM]", "confidence": 0.8}},
+    {{"category": "teams", "fact": "[TEAM NAME]: [RESPONSIBILITY]", "confidence": 0.9}},
+    {{"category": "systems", "fact": "[SYSTEM NAME]", "confidence": 0.9}},
+    {{"category": "metrics", "fact": "[METRIC NAME]: [VALUE] [UNIT]", "confidence": 0.8}},
+    {{"category": "decisions", "fact": "Decision: [CONDITION] then [ACTION]", "confidence": 0.7}},
+    {{"category": "constraints", "fact": "[CONSTRAINT DESCRIPTION]", "confidence": 0.7}}
   ],
   "sources": [
-    {{"system": "string", "description": "string"}}
+    {{"system": "[SYSTEM/TEAM NAME]", "description": "[WHAT THEY DO]"}}
   ],
-  "exceptions": ["string"],
-  "unknowns": ["string"]
+  "exceptions": ["[EXCEPTION CASE]"],
+  "unknowns": ["[WHAT'S UNCLEAR]"]
 }}
 
-Return only the JSON object. Categories: suppliers, customers, process_steps, systems, metrics, constraints.
+IMPORTANT:
+- Be SPECIFIC - extract actual names, values, and details from the document
+- Don't skip tables or structured data!
+- If you see a labeled field (like "Process Owner: John Smith"), extract it!
+- Extract team names mentioned anywhere in the document
+- Return ONLY the JSON object, no other text.
 """
 
     def _parse_extraction(self, text: str) -> Dict[str, Any]:
