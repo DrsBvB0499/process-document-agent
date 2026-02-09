@@ -268,7 +268,7 @@ Now write a similar greeting for this user and project.
 
         return greeting
 
-    def _get_recent_history(self, project_id: str, limit: int = 5) -> str:
+    def _get_recent_history(self, project_id: str, limit: int = 20) -> str:
         """Load recent conversation turns to provide context.
 
         Args:
@@ -284,7 +284,7 @@ Now write a similar greeting for this user and project.
         if not turns:
             return "No previous conversation history."
 
-        # Get last N turns
+        # Get last N turns (increased from 5 to 20 to prevent loops)
         recent_turns = turns[-limit:] if len(turns) > limit else turns
 
         # Format for prompt
@@ -333,8 +333,9 @@ STILL MISSING: {', '.join(missing_fields[:3])}
 
 USER'S ROLE: {role.capitalize()} | CONVERSATION STYLE: {depth}
 
-RECENT CONVERSATION HISTORY:
+===== FULL CONVERSATION HISTORY (READ THIS CAREFULLY!) =====
 {conversation_history if conversation_history else "No previous conversation."}
+==============================================================
 
 USER'S CURRENT MESSAGE:
 "{user_message}"
@@ -342,8 +343,23 @@ USER'S CURRENT MESSAGE:
 WHAT WE'RE WORKING ON:
 {gap_context}
 
+🚨 CRITICAL: DETECT LOOP SITUATIONS 🚨
+If the user says ANY of these phrases, you are in a LOOP and must STOP:
+- "I already told you this"
+- "You already asked me that"
+- "You're repeating yourself"
+- "We already discussed this"
+- "I shared that information earlier"
+
+When detected, you MUST:
+1. Apologize sincerely for the repetition
+2. Review the history above to find what they told you
+3. Acknowledge the specific information they provided
+4. Move to a COMPLETELY DIFFERENT topic from the gap context
+5. DO NOT ask for clarification on the same topic again
+
 CRITICAL CONVERSATION RULES:
-1. **READ THE HISTORY** - Review what the user has already told you. NEVER ask for information they've already provided!
+1. **READ THE ENTIRE HISTORY ABOVE** - Before asking ANY question, scan the full history to see if the user already answered it!
 2. **ONE QUESTION AT A TIME** - Never ask multiple questions in one response
 3. **EXPLAIN FIRST** - Before asking, explain what you're asking for in simple terms (no jargon like "SIPOC")
 4. **PROVIDE AN EXAMPLE** - Give a concrete example to help the user understand
@@ -351,6 +367,7 @@ CRITICAL CONVERSATION RULES:
 6. **BE ENCOURAGING** - Acknowledge what they've already shared before asking for more
 7. **SIMPLE LANGUAGE** - Avoid technical terms unless the user is a developer
 8. **MOVE FORWARD** - If they've answered your question, acknowledge it and move to the NEXT gap item
+9. **CHECK FOR DUPLICATES** - Before asking about exceptions, frequency, tracking, or handling, search the history above first!
 
 RESPONSE STRUCTURE (follow this exactly):
 - First: Acknowledge their input or answer their question warmly
@@ -371,7 +388,7 @@ Can you tell me who the main providers of information are for your process?"
 EXAMPLE BAD RESPONSE (DON'T DO THIS):
 "Thanks for sharing! We still need details on suppliers, inputs, performers, decisions, and metrics. Could you provide more information on these areas? What else would you like to share?"
 
-Now respond to the user's message following these rules.
+Now respond to the user's message following these rules. REMEMBER: Read the full history above before asking ANY question!
 """
 
     def _clean_response(self, text: str) -> str:

@@ -87,6 +87,33 @@ def project_dashboard(project_id: str):
             except Exception:
                 pass
 
+        # Get knowledge base breakdown by category
+        kb_breakdown = {}
+        if kb_path.exists():
+            try:
+                with open(kb_path, 'r', encoding='utf-8') as f:
+                    kb = json.load(f)
+                    facts = kb.get('facts', [])
+                    # Group facts by category
+                    for fact in facts:
+                        category = fact.get('category', 'other')
+                        if category not in kb_breakdown:
+                            kb_breakdown[category] = []
+                        kb_breakdown[category].append(fact.get('fact', ''))
+            except Exception:
+                pass
+
+        # Get gap analysis (what's missing for deliverables)
+        gap_data = None
+        try:
+            from agent.gap_analyzer import GapAnalyzer
+            ga = GapAnalyzer(pm.config.projects_root)
+            gap_result = ga.analyze_project(project_id)
+            if gap_result.get('status') == 'success':
+                gap_data = gap_result
+        except Exception:
+            pass
+
         return render_template(
             'project.html',
             project=project,
@@ -94,7 +121,9 @@ def project_dashboard(project_id: str):
             kb_facts=kb_facts,
             uploaded_files=len(uploaded_files),
             api_calls=api_calls,
-            total_cost=total_cost
+            total_cost=total_cost,
+            kb_breakdown=kb_breakdown,
+            gap_data=gap_data
         )
     except Exception as e:
         return render_template('error.html', message=str(e)), 500

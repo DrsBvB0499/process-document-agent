@@ -902,3 +902,199 @@ input[type="file"] {
         width: 100%;
     }
 }
+
+/* ===============================================
+   Knowledge & Progress Section
+   =============================================== */
+
+.subsection {
+    margin-bottom: 2rem;
+}
+
+.subsection h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+/* Knowledge Grid */
+.knowledge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.knowledge-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.knowledge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.knowledge-header strong {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.badge {
+    background: var(--accent-color);
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.fact-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.fact-list li {
+    padding: 0.4rem 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.fact-list li:last-child {
+    border-bottom: none;
+}
+
+.fact-more {
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* Completeness Summary */
+.completeness-summary {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.overall-progress {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.progress-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 140px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 24px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    transition: width 0.3s ease;
+}
+
+.progress-value {
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 50px;
+    text-align: right;
+}
+
+/* Gap Cards */
+.gap-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1rem;
+}
+
+.gap-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.gap-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.gap-header strong {
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.completeness-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.completeness-badge.good {
+    background: #d4edda;
+    color: #155724;
+}
+
+.completeness-badge.warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.completeness-badge.critical {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.gap-missing,
+.gap-complete {
+    margin-top: 1rem;
+}
+
+.gap-section-title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.gap-list {
+    list-style: none;
+    padding-left: 1rem;
+    margin: 0;
+}
+
+.gap-list li {
+    padding: 0.3rem 0;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.gap-list li::before {
+    content: "•";
+    margin-right: 0.5rem;
+    color: var(--text-muted);
+}

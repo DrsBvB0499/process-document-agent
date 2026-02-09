@@ -80,6 +80,93 @@
     </div>
 </div>
 
+<!-- Knowledge & Progress (NEW!) -->
+{% if kb_facts > 0 or gap_data %}
+<div class="section">
+    <h2>📖 Knowledge & Progress</h2>
+
+    {% if kb_breakdown %}
+    <div class="subsection">
+        <h3>What the Agent Has Learned</h3>
+        <div class="knowledge-grid">
+            {% for category, facts in kb_breakdown.items() %}
+            <div class="knowledge-card">
+                <div class="knowledge-header">
+                    <strong>{{ category|replace('_', ' ')|title }}</strong>
+                    <span class="badge">{{ facts|length }}</span>
+                </div>
+                <ul class="fact-list">
+                    {% for fact in facts[:5] %}
+                    <li>{{ fact }}</li>
+                    {% endfor %}
+                    {% if facts|length > 5 %}
+                    <li class="fact-more">... and {{ facts|length - 5 }} more</li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if gap_data %}
+    <div class="subsection">
+        <h3>Deliverable Completeness</h3>
+        <div class="completeness-summary">
+            <div class="overall-progress">
+                <div class="progress-label">Overall Progress</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ gap_data.overall_completeness }}%"></div>
+                </div>
+                <div class="progress-value">{{ gap_data.overall_completeness }}%</div>
+            </div>
+        </div>
+
+        <div class="gap-cards">
+            {% for gap in gap_data.deliverable_gaps %}
+            <div class="gap-card">
+                <div class="gap-header">
+                    <strong>{{ gap.deliverable }}</strong>
+                    <span class="completeness-badge {% if gap.completeness_pct >= 80 %}good{% elif gap.completeness_pct >= 50 %}warning{% else %}critical{% endif %}">
+                        {{ gap.completeness_pct }}%
+                    </span>
+                </div>
+
+                {% if gap.missing_fields %}
+                <div class="gap-missing">
+                    <div class="gap-section-title">❌ Still Missing:</div>
+                    <ul class="gap-list">
+                        {% for field in gap.missing_fields[:3] %}
+                        <li>{{ field|replace('_', ' ')|title }}</li>
+                        {% endfor %}
+                        {% if gap.missing_fields|length > 3 %}
+                        <li>... and {{ gap.missing_fields|length - 3 }} more</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if gap.present_fields %}
+                <div class="gap-complete">
+                    <div class="gap-section-title">✅ Already Have:</div>
+                    <ul class="gap-list">
+                        {% for field in gap.present_fields[:3] %}
+                        <li>{{ field|replace('_', ' ')|title }}</li>
+                        {% endfor %}
+                        {% if gap.present_fields|length > 3 %}
+                        <li>... and {{ gap.present_fields|length - 3 }} more</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 <!-- Actions -->
 <div class="section">
     <h2>🚀 Actions</h2>
