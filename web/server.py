@@ -174,7 +174,7 @@ def api_list_projects():
     """List all projects."""
     try:
         projects = pm.list_projects()
-        return jsonify(projects)
+        return jsonify([p.to_dict() for p in projects])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -191,7 +191,7 @@ def api_create_project():
             return jsonify({'error': 'project_name is required'}), 400
 
         project = pm.create_project(project_name, description)
-        return jsonify(project), 201
+        return jsonify(project.to_dict()), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -203,7 +203,7 @@ def api_get_project(project_id: str):
         project = pm.get_project(project_id)
         if not project:
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
-        return jsonify(project)
+        return jsonify(project.to_dict())
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
