@@ -1,0 +1,54 @@
+[
+  {
+    "timestamp": "2026-02-09T13:48:28.209497Z",
+    "project_id": "vendor-onboarding-automation",
+    "agent": "knowledge_processor",
+    "model": "gpt-3.5-turbo-16k",
+    "phase": null,
+    "deliverable": null,
+    "input_tokens": 348,
+    "output_tokens": 232,
+    "cost_usd": 0.0,
+    "escalated": false,
+    "duration_ms": 0
+  },
+  {
+    "timestamp": "2026-02-09T13:48:28.241235Z",
+    "project_id": "vendor-onboarding-automation",
+    "agent": "conversation_agent",
+    "model": "gpt-4o",
+    "phase": null,
+    "deliverable": null,
+    "input_tokens": 242,
+    "output_tokens": 161,
+    "cost_usd": 0.0,
+    "escalated": false,
+    "duration_ms": 0
+  },
+  {
+    "timestamp": "2026-02-09T13:48:28.267130Z",
+    "project_id": "vendor-onboarding-automation",
+    "agent": "conversation_agent",
+    "model": "gpt-4o",
+    "phase": null,
+    "deliverable": null,
+    "input_tokens": 231,
+    "output_tokens": 154,
+    "cost_usd": 0.0,
+    "escalated": false,
+    "duration_ms": 0
+  },
+  {
+    "timestamp": "2026-02-09T13:48:28.328124Z",
+    "project_id": "vendor-onboarding-automation",
+    "agent": "conversation_agent",
+    "model": "gpt-4o",
+    "phase": null,
+    "deliverable": null,
+    "input_tokens": 242,
+    "output_tokens": 161,
+    "cost_usd": 0.0,
+    "escalated": false,
+    "duration_ms": 0
+  }
+]

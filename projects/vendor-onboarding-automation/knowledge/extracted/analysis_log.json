@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": "2026-02-09T13:48:28.209497Z",
+    "source_file": "vendor_sop.txt",
+    "file_type": ".txt",
+    "file_size_bytes": 897,
+    "status": "success",
+    "model": "gpt-3.5-turbo-16k",
+    "input_tokens": 348,
+    "output_tokens": 232,
+    "cost_usd": 0.0,
+    "extraction": {
+      "facts": [],
+      "sources": [],
+      "exceptions": [],
+      "unknowns": []
+    }
+  }
+]
