@@ -1,0 +1,15 @@
+[
+  {
+    "timestamp": "2026-02-09T10:56:00.906071Z",
+    "project_id": "test-project",
+    "agent": "knowledge_processor",
+    "model": "gpt-4o-mini",
+    "phase": null,
+    "deliverable": null,
+    "input_tokens": 8,
+    "output_tokens": 5,
+    "cost_usd": 0.0,
+    "escalated": false,
+    "duration_ms": 0
+  }
+]
