@@ -88,7 +88,7 @@ class ConversationAgent:
         It's interface-agnostic: can be called from CLI, web, or Teams.
 
         Args:
-            message: The user's message
+            message: The user's message (use "__START__" for initial greeting)
             user_id: Email or identifier of the user
             user_role: Role of the user (process_owner, sme, etc.)
             project_id: The project being worked on
@@ -108,22 +108,33 @@ class ConversationAgent:
         if gap_brief.get("status") != "success":
             return "Error loading project gaps. Please ensure the project exists and has a knowledge base."
 
-        # Determine what to respond with
-        response = self._generate_response(
-            message=message,
-            user_role=user_role,
-            gap_brief=gap_brief,
-            project_id=project_id,
-        )
+        # Check if this is an initial greeting request
+        if message.strip() == "__START__":
+            response = self._generate_initial_greeting(
+                user_id=user_id,
+                user_role=user_role,
+                gap_brief=gap_brief,
+                project_id=project_id,
+            )
+        else:
+            # Normal conversation flow
+            response = self._generate_response(
+                message=message,
+                user_role=user_role,
+                gap_brief=gap_brief,
+                project_id=project_id,
+            )
 
         # Append learnings to knowledge base (simplified: user message itself is logged)
-        self._log_conversation(
-            project_id=project_id,
-            user_id=user_id,
-            user_role=user_role,
-            user_message=message,
-            agent_response=response,
-        )
+        # Skip logging for __START__ messages
+        if message.strip() != "__START__":
+            self._log_conversation(
+                project_id=project_id,
+                user_id=user_id,
+                user_role=user_role,
+                user_message=message,
+                agent_response=response,
+            )
 
         return response
 
@@ -157,6 +168,101 @@ class ConversationAgent:
         response_text = self._clean_response(response_text)
 
         return response_text
+
+    def _generate_initial_greeting(
+        self,
+        user_id: str,
+        user_role: str,
+        gap_brief: Dict[str, Any],
+        project_id: str,
+    ) -> str:
+        """Generate a personalized initial greeting based on project state."""
+        # Load project info
+        project_path = self.projects_root / project_id
+        project_file = project_path / "project.json"
+
+        project_info = {}
+        if project_file.exists():
+            try:
+                with open(project_file, 'r', encoding='utf-8') as f:
+                    project_info = json.load(f)
+            except Exception:
+                pass
+
+        # Extract user name from user_id (if it's an email, use first part)
+        user_name = user_id.split('@')[0].replace('.', ' ').replace('_', ' ').title() if '@' in user_id else user_id
+        if user_name == "web-user":
+            user_name = None  # Don't use generic name
+
+        # Get project details
+        project_name = project_info.get('project_name', 'this project')
+        current_phase = project_info.get('current_phase', 'standardization')
+
+        # Get knowledge base stats
+        kb_path = project_path / "knowledge" / "extracted" / "knowledge_base.json"
+        kb_facts = 0
+        if kb_path.exists():
+            try:
+                with open(kb_path, 'r', encoding='utf-8') as f:
+                    kb = json.load(f)
+                    kb_facts = len(kb.get('facts', []))
+            except Exception:
+                pass
+
+        # Get overall completeness
+        deliverable_gaps = gap_brief.get("deliverable_gaps", [])
+        overall_completeness = gap_brief.get("overall_completeness", 0)
+
+        # Find least complete deliverable
+        focus_gap = None
+        if deliverable_gaps:
+            incomplete_gaps = [g for g in deliverable_gaps if g.get("missing_fields")]
+            if incomplete_gaps:
+                focus_gap = min(incomplete_gaps, key=lambda g: g.get("completeness_pct", 100))
+
+        # Build greeting prompt
+        greeting_prompt = f"""You are a friendly consultant starting a conversation about process improvement.
+
+PROJECT CONTEXT:
+- Project: {project_name}
+- Current Phase: {current_phase}
+- Knowledge Base: {kb_facts} facts extracted
+- Overall Progress: {overall_completeness}% complete
+- User Role: {user_role}
+{"- User Name: " + user_name if user_name else "- User Name: Unknown"}
+
+NEXT FOCUS AREA:
+{f"- {focus_gap.get('deliverable')} ({focus_gap.get('completeness_pct')}% complete)" if focus_gap else "- All deliverables mostly complete"}
+
+TASK:
+Write a warm, personalized greeting to start the conversation. Follow this structure:
+
+1. Greet the user by name if known (otherwise just say "Hi there!")
+2. Acknowledge what's been done so far (files processed, progress made)
+3. Mention the current phase and what that means
+4. Suggest what to work on next (based on the focus area)
+5. Give them control - ask if they want to work on that, or have something else in mind
+
+TONE: Friendly, encouraging, professional. Make them feel like progress is being made.
+LENGTH: 3-4 sentences maximum.
+
+EXAMPLE:
+"Hi Sarah, great to see you! I can see you've uploaded and processed some documents - we now have 47 facts in the knowledge base, which is a solid start. We're currently in the Standardization phase, where we're mapping out how the process works today. I think we should focus on identifying who provides information for this process - does that sound good, or did you have something else you wanted to discuss first?"
+
+Now write a similar greeting for this user and project.
+"""
+
+        # Call LLM to generate greeting
+        result = call_model(
+            project_id=project_id,
+            agent="conversation_agent",
+            prompt=greeting_prompt,
+        )
+
+        greeting = result.get("text", "Hello! Ready to work on this project together?")
+        greeting = self._clean_response(greeting)
+
+        return greeting
 
     def _build_response_prompt(
         self,

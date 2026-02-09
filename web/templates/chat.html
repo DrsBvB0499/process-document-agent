@@ -185,7 +185,63 @@ chatForm.addEventListener('submit', async function(e) {
     }
 });
 
-// Initial scroll
+// Auto-start conversation if no messages exist
+async function autoStartConversation() {
+    const emptyState = chatMessages.querySelector('.chat-empty');
+    if (!emptyState) return; // Already has messages
+
+    const userRole = userRoleSelect.value;
+
+    // Show typing indicator
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message agent-message typing-indicator';
+    typingDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-author">🤖 Agent</span>
+        </div>
+        <div class="message-content">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+        </div>
+    `;
+
+    // Remove empty state first
+    emptyState.remove();
+    chatMessages.appendChild(typingDiv);
+
+    try {
+        const response = await fetch(`/api/projects/${PROJECT_ID}/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: '__START__',
+                user_id: 'web-user',
+                user_role: userRole
+            })
+        });
+
+        const data = await response.json();
+
+        // Remove typing indicator
+        typingDiv.remove();
+
+        if (response.ok) {
+            addMessage(data.response, false);
+        } else {
+            addMessage(`Error: ${data.error}`, false);
+        }
+    } catch (error) {
+        typingDiv.remove();
+        addMessage(`Error: ${error.message}`, false);
+    }
+}
+
+// Initial scroll and auto-start
 scrollToBottom();
+// Wait a moment for page to fully render, then auto-start
+setTimeout(autoStartConversation, 500);
 </script>
 {% endblock %}
