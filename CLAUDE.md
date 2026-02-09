@@ -8,26 +8,32 @@ The system follows 5 phases: Standardization → Optimization → Digitization �
 
 See `system_architecture.md` for the full system design.
 
-## Current State
+## Current State (Stages 1-3 Complete ✅)
 
-### What's Built (Working)
-- **Process Analysis Agent** (`agent/process_agent.py`) — conversational agent that interviews users about a business process to collect SIPOC, process map, and baseline data. Uses OpenAI API.
-- **Intelligent Document Generator** (`agent/intelligent_doc_generator.py`) — takes a session JSON, sends the conversation to OpenAI for structured extraction (4 API calls), generates a professional Word document with SIPOC table, process map, baseline metrics, and Mermaid flowchart rendered to PNG via `mmdc`.
-- **Document Generator** (`agent/document_generator.py`) — older static document generator (being replaced by intelligent_doc_generator.py).
-- **Flowchart Generator** (`agent/flowchart_generator.py`) — Pillow-based flowchart renderer (being replaced by Mermaid + mmdc approach).
-- **Session Bridge** (`agent/session_to_document.py`) — older bridge script (being replaced by intelligent_doc_generator.py).
-- **Project Manager** (`agent/project_manager.py`) — manages project lifecycle, folder structure, and `project.json` state tracker (Stage 1 Foundation).
-- **CLI Interface** (`cli.py`) — command-line tool to create projects, list projects, check status, and inspect project state (Stage 1 Foundation).
-- **Knowledge Processor** (`agent/knowledge_processor.py`) — reads uploaded files (PDF, DOCX, TXT, images), extracts structured information using LLM, consolidates into `knowledge_base.json` and `analysis_log.json` (Stage 2).
-- **Gap Analyzer** (`agent/gap_analyzer.py`) — compares knowledge base against deliverable requirements (SIPOC, process map, baseline metrics, etc.), identifies missing fields, and produces a gap brief (Stage 3).
-- **Conversation Agent** (`agent/conversation_agent.py`) — interface-agnostic conversational agent that takes gap briefs as input, asks role-aware targeted questions, and logs all conversation turns to `sessions/` (Stage 3).
+### Stage 1: Foundation (✅ Complete)
+- **Project Manager** (`agent/project_manager.py`) — Creates project folder structure, manages `project.json` state, handles project CRUD operations
+- **CLI Interface** (`cli.py`) — `python cli.py create|list|status|inspect` commands for project management
+- **Project Schema** (`PROJECT_JSON_SCHEMA.md`) — Documents `project.json` structure with 5 phases, deliverables, team roster, gate criteria
 
-### What's Next (Stage 1: Foundation)
-We are building the **project-based foundation** as described in system_architecture.md Section 6, Stage 1:
-- Project folder structure with `project.json` state tracker
-- Knowledge folder where humans can upload files and the agent can store information
-- CLI to create projects, list projects, check status
-- Refactoring current agent to work within project context
+### Stage 2: Knowledge Processing (✅ Complete)
+- **Knowledge Processor** (`agent/knowledge_processor.py`) — Reads uploaded files (PDF, DOCX, TXT, CSV, JSON, images), extracts structured info via LLM, creates `knowledge_base.json` and `analysis_log.json`
+- **LLM Router** (`agent/llm.py`) — Runtime model selection via MODEL_MAP, automatic escalation on low confidence, cost logging to `cost_log.json`
+
+### Stage 3: Intelligent Conversation (✅ Complete)
+- **Gap Analyzer** (`agent/gap_analyzer.py`) — Compares knowledge base vs. deliverable requirements, identifies missing fields, generates role-aware recommendations
+- **Conversation Agent** (`agent/conversation_agent.py`) — Interface-agnostic message handler, role-aware question generation, session logging to `knowledge/sessions/`
+
+### Testing (✅ Complete)
+- **Integration Test** (`test_integration_1_to_3.py`) — End-to-end test exercising all Stages 1-3, verifies project creation → knowledge processing → gap analysis → conversation logging
+
+### What's Next (Stage 4+)
+**Stage 4: Full Standardization Phase** — Implement SIPOC generator, process map analyzer, baseline metrics aggregator, flowchart generator from map, exception register builder
+
+**Stage 5: Gate Review** — Implement gate evaluation agent to check deliverable completeness and unlock phases
+
+**Stages 6-10:** Optimization, Digitization, Automation, Autonomization phases following the same pattern
+
+**Teams Integration (Optional):** Wire Conversation Agent to Azure Bot Service for Teams channel operation
 
 ## Tech Stack
 
@@ -41,25 +47,35 @@ We are building the **project-based foundation** as described in system_architec
 
 ## Project Structure
 
+The system is organized into **projects**, each with persistent state:
+
 ```
-process-document-agent/
-├── system_architecture.md   # System design document
-├── CLAUDE.md                # This file — project context for Claude Code
-├── README.md                # User-facing documentation
-├── requirements.txt         # Python dependencies
-├── .env                     # API keys (not in git)
-├── .gitignore
-├── agent/                   # Agent source code
-│   ├── process_agent.py     # Conversational analysis agent
-│   ├── intelligent_doc_generator.py  # AI-powered document generator
-│   ├── document_generator.py         # Legacy static generator
-│   ├── flowchart_generator.py        # Legacy Pillow-based flowcharts
-│   ├── session_to_document.py        # Legacy bridge script
-│   └── project_manager.py            # Project lifecycle management (new)
-├── outputs/                 # Generated outputs (session files, documents)
-├── cli.py                   # Command-line interface for project management
-├── projects/                # Project knowledge stores with project.json
-└── PROJECT_JSON_SCHEMA.md   # Documentation of project.json structure
+projects/
+├── {project_id}/
+│   ├── project.json                          # Single source of truth for project state
+│   ├── knowledge/
+│   │   ├── uploaded/                         # Human uploads files here
+│   │   ├── extracted/
+│   │   │   ├── knowledge_base.json           # Consolidated facts, sources, exceptions
+│   │   │   └── analysis_log.json             # Per-file processing audit trail
+│   │   └── sessions/
+│   │       └── session_YYYY-MM-DD.json       # Conversation transcripts
+│   ├── deliverables/
+│   │   ├── 1-standardization/                # Stage 1 deliverables
+│   │   ├── 2-optimization/                   # Stage 2 deliverables
+│   │   ├── 3-digitization/                   # Stage 3 deliverables
+│   │   ├── 4-automation/                     # Stage 4 deliverables
+│   │   └── 5-autonomization/                 # Stage 5 deliverables
+│   └── gate_reviews/                         # Gate review logs
+├── legacy-project/
+│   └── ...
+```
+
+### Key Data Files
+- **project.json** — complete project state: phases, deliverables, team, gate criteria, knowledge sources
+- **knowledge_base.json** — consolidated view of all extracted facts with confidence, sources, exceptions, unknowns
+- **cost_log.json** — audit trail of all API calls with token counts and costs
+- **session_YYYY-MM-DD.json** — conversation transcripts for analysis and reference
 ```
 
 ## Coding Conventions
@@ -83,10 +99,63 @@ process-document-agent/
 6. **Interface-agnostic core:** The agent core is a callable function `(message, user_id, project_id) → response`. No `input()` calls in core logic. CLI, web, and Teams are thin wrappers.
 7. **Right model for the job:** Use cheap models (gpt-4o-mini) for extraction and structured tasks, premium models (gpt-4o) for conversation and judgment. Escalate automatically on low confidence. Log all costs.
 
+## Quick Start
+
+### Create a Project
+```bash
+python cli.py create "My Process Automation"
+```
+Creates a new project with full folder structure and `project.json`.
+
+### Upload Knowledge Files
+Copy files to `projects/{project_id}/knowledge/uploaded/`
+
+### Process Knowledge
+```python
+from agent.knowledge_processor import KnowledgeProcessor
+kp = KnowledgeProcessor()
+result = kp.process_project("my-process-automation")
+# Creates: knowledge_base.json, analysis_log.json
+```
+
+### Analyze Gaps
+```python
+from agent.gap_analyzer import GapAnalyzer
+ga = GapAnalyzer()
+gaps = ga.analyze_project("my-process-automation")
+# Shows: missing fields per deliverable, completeness %, recommendations
+```
+
+### Have a Conversation
+```python
+from agent.conversation_agent import ConversationAgent
+ca = ConversationAgent()
+response = ca.handle_message(
+    message="Tell me about the approval workflow",
+    user_id="sarah@company.com",
+    user_role="sme",
+    project_id="my-process-automation"
+)
+# Logs turn to: projects/{project_id}/knowledge/sessions/session_YYYY-MM-DD.json
+```
+
+### Check Status
+```bash
+python cli.py status my-process-automation
+```
+
+### Run Integration Tests
+```bash
+python test_integration_1_to_3.py
+```
+Tests Stages 1-3 complete workflow end-to-end.
+
 ## Important Notes
 
 - The `.env` file contains API keys and is NOT committed to git.
-- The `outputs/` folder contains generated files and session data.
-- When creating new agents or scripts, follow the pattern in `intelligent_doc_generator.py` for .env loading (try multiple paths).
-- Mermaid flowcharts: always use `cleanup_mermaid()` to ensure proper formatting before passing to `mmdc`. Avoid special characters (€, <, >) in node labels.
-- On Windows, always use `shell=True` for subprocess calls to `mmdc`.
+- Each project maintains independent cost tracking in `cost_log.json`.
+- Knowledge consolidation is incremental — files are never re-processed unless explicitly cleared.
+- Session logging is automatic and date-based; multiple conversations on the same day are appended to the same session file.
+- Model selection is centralized in `agent/llm.py` via `DEFAULT_MODEL_MAP`. Override specific models via `.env` if needed.
+- The Conversation Agent is interface-agnostic; `handle_message()` is a pure function suitable for CLI, web, Teams, or Slack.
+- Always read gap brief before generating response — this ensures agent only asks about missing information and maintains knowledge-first principle.
