@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 import mimetypes
 
 from agent.llm import call_model
+from agent.validators import validate_project_id
 
 
 class KnowledgeProcessor:
@@ -46,16 +47,25 @@ class KnowledgeProcessor:
 
     def process_project(self, project_id: str) -> Dict[str, Any]:
         """Process all uploaded files for a project.
-        
+
         Scans knowledge/uploaded/, reads each file, extracts structured
         information, and updates knowledge_base.json and analysis_log.json.
-        
+
         Args:
             project_id: The project ID to process
-        
+
         Returns:
             Dictionary with keys: knowledge_base, analysis_log, status
         """
+        # Validate project_id to prevent path traversal attacks
+        if not validate_project_id(project_id):
+            return {
+                "knowledge_base": {},
+                "analysis_log": [],
+                "status": "invalid_project_id",
+                "error": f"Invalid project ID '{project_id}'. Must contain only lowercase letters, numbers, and hyphens.",
+            }
+
         project_path = self.projects_root / project_id
         uploaded_path = project_path / "knowledge" / "uploaded"
         extracted_path = project_path / "knowledge" / "extracted"
@@ -338,16 +348,24 @@ Return only the JSON object. Categories: suppliers, customers, process_steps, sy
     ) -> None:
         """Save knowledge_base.json."""
         kb_path = extracted_path / "knowledge_base.json"
-        with open(kb_path, "w", encoding="utf-8") as f:
-            json.dump(knowledge_base, f, indent=2, ensure_ascii=False)
+        try:
+            with open(kb_path, "w", encoding="utf-8") as f:
+                json.dump(knowledge_base, f, indent=2, ensure_ascii=False)
+        except (IOError, OSError) as e:
+            # Log error but don't crash the entire process
+            print(f"Warning: Failed to save knowledge_base.json: {e}")
 
     def _save_analysis_log(
         self, extracted_path: Path, analysis_log: List[Dict[str, Any]]
     ) -> None:
         """Save analysis_log.json."""
         log_path = extracted_path / "analysis_log.json"
-        with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(analysis_log, f, indent=2, ensure_ascii=False)
+        try:
+            with open(log_path, "w", encoding="utf-8") as f:
+                json.dump(analysis_log, f, indent=2, ensure_ascii=False)
+        except (IOError, OSError) as e:
+            # Log error but don't crash the entire process
+            print(f"Warning: Failed to save analysis_log.json: {e}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,7 @@
+# Flask Web Server Dependencies
+
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# All existing agent dependencies are inherited from parent requirements.txt
+# This file only lists additional web-specific dependencies

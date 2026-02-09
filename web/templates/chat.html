@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - {{ project.project_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>💬 Conversation</h1>
+        <p class="subtitle">{{ project.project_name }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="/project/{{ project_id }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+</div>
+
+<div class="chat-container">
+    <!-- User Role Selector -->
+    <div class="chat-sidebar">
+        <h3>Your Role</h3>
+        <select id="user-role" class="form-control">
+            <option value="business_analyst">Business Analyst</option>
+            <option value="process_owner">Process Owner</option>
+            <option value="sme">Subject Matter Expert (SME)</option>
+            <option value="developer">Developer</option>
+        </select>
+
+        <div class="chat-info">
+            <h4>About This Chat</h4>
+            <p>The agent will ask intelligent questions based on gaps in the knowledge base. It already knows what's in your uploaded documents.</p>
+            <ul>
+                <li>✅ Knowledge-first approach</li>
+                <li>✅ Role-aware questions</li>
+                <li>✅ Gap-guided interviews</li>
+                <li>✅ Session logging</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="chat-main">
+        <div id="chat-messages" class="chat-messages">
+            {% if messages %}
+                {% for turn in messages %}
+                <div class="message user-message">
+                    <div class="message-header">
+                        <span class="message-author">{{ turn.user_id }}</span>
+                        <span class="message-time">{{ turn.timestamp.split('T')[1].split('.')[0] if 'T' in turn.timestamp else turn.timestamp }}</span>
+                    </div>
+                    <div class="message-content">{{ turn.user_message }}</div>
+                </div>
+                <div class="message agent-message">
+                    <div class="message-header">
+                        <span class="message-author">🤖 Agent</span>
+                        <span class="message-time">{{ turn.timestamp.split('T')[1].split('.')[0] if 'T' in turn.timestamp else turn.timestamp }}</span>
+                    </div>
+                    <div class="message-content">{{ turn.agent_response }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="chat-empty">
+                <div class="empty-icon">💬</div>
+                <h3>Start a Conversation</h3>
+                <p>Ask me about the process, or let me guide you through filling in knowledge gaps.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Input Area -->
+        <form id="chat-form" class="chat-input">
+            <input
+                type="text"
+                id="message-input"
+                placeholder="Type your message..."
+                autocomplete="off"
+                required
+            >
+            <button type="submit" class="btn btn-primary">Send</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PROJECT_ID = "{{ project_id }}";
+const chatMessages = document.getElementById('chat-messages');
+const chatForm = document.getElementById('chat-form');
+const messageInput = document.getElementById('message-input');
+const userRoleSelect = document.getElementById('user-role');
+
+// Auto-scroll to bottom
+function scrollToBottom() {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Add message to chat
+function addMessage(content, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isUser ? 'user-message' : 'agent-message'}`;
+
+    const now = new Date();
+    const time = now.toTimeString().split(' ')[0];
+
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-author">${isUser ? 'You' : '🤖 Agent'}</span>
+            <span class="message-time">${time}</span>
+        </div>
+        <div class="message-content">${content}</div>
+    `;
+
+    // Remove empty state if present
+    const emptyState = chatMessages.querySelector('.chat-empty');
+    if (emptyState) {
+        emptyState.remove();
+    }
+
+    chatMessages.appendChild(messageDiv);
+    scrollToBottom();
+}
+
+// Handle form submission
+chatForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    const userRole = userRoleSelect.value;
+
+    // Add user message immediately
+    addMessage(message, true);
+    messageInput.value = '';
+
+    // Show typing indicator
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'message agent-message typing-indicator';
+    typingDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-author">🤖 Agent</span>
+        </div>
+        <div class="message-content">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+        </div>
+    `;
+    chatMessages.appendChild(typingDiv);
+    scrollToBottom();
+
+    try {
+        const response = await fetch(`/api/projects/${PROJECT_ID}/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: message,
+                user_id: 'web-user',
+                user_role: userRole
+            })
+        });
+
+        const data = await response.json();
+
+        // Remove typing indicator
+        typingDiv.remove();
+
+        if (response.ok) {
+            addMessage(data.response, false);
+        } else {
+            addMessage(`Error: ${data.error}`, false);
+        }
+    } catch (error) {
+        typingDiv.remove();
+        addMessage(`Error: ${error.message}`, false);
+    }
+});
+
+// Initial scroll
+scrollToBottom();
+</script>
+{% endblock %}

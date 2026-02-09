@@ -34,6 +34,7 @@ from typing import Any, Dict, Optional
 
 from agent.llm import call_model
 from agent.gap_analyzer import GapAnalyzer
+from agent.validators import validate_project_id, validate_user_role
 
 
 class ConversationAgent:
@@ -82,19 +83,26 @@ class ConversationAgent:
         project_id: str,
     ) -> str:
         """Handle a message from the user and return a response.
-        
+
         This is the main entry point for the conversation agent.
         It's interface-agnostic: can be called from CLI, web, or Teams.
-        
+
         Args:
             message: The user's message
             user_id: Email or identifier of the user
             user_role: Role of the user (process_owner, sme, etc.)
             project_id: The project being worked on
-        
+
         Returns:
             Response string to send back to the user
         """
+        # Validate inputs to prevent path traversal and injection attacks
+        if not validate_project_id(project_id):
+            return f"Error: Invalid project ID '{project_id}'. Project IDs must contain only lowercase letters, numbers, and hyphens."
+
+        if not validate_user_role(user_role):
+            return f"Error: Invalid user role '{user_role}'. Valid roles are: process_owner, business_analyst, sme, developer."
+
         # Get gap brief
         gap_brief = self.gap_analyzer.analyze_project(project_id)
         if gap_brief.get("status") != "success":

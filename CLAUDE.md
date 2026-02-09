@@ -8,27 +8,35 @@ The system follows 5 phases: Standardization → Optimization → Digitization �
 
 See `system_architecture.md` for the full system design.
 
-## Current State (Stages 1-3 Complete ✅)
+## Current State (Stages 1-4 Complete ✅)
 
 ### Stage 1: Foundation (✅ Complete)
 - **Project Manager** (`agent/project_manager.py`) — Creates project folder structure, manages `project.json` state, handles project CRUD operations
 - **CLI Interface** (`cli.py`) — `python cli.py create|list|status|inspect` commands for project management
 - **Project Schema** (`PROJECT_JSON_SCHEMA.md`) — Documents `project.json` structure with 5 phases, deliverables, team roster, gate criteria
+- **Input Validators** (`agent/validators.py`) — Security validation for project IDs, user roles, file paths to prevent injection attacks
 
 ### Stage 2: Knowledge Processing (✅ Complete)
 - **Knowledge Processor** (`agent/knowledge_processor.py`) — Reads uploaded files (PDF, DOCX, TXT, CSV, JSON, images), extracts structured info via LLM, creates `knowledge_base.json` and `analysis_log.json`
-- **LLM Router** (`agent/llm.py`) — Runtime model selection via MODEL_MAP, automatic escalation on low confidence, cost logging to `cost_log.json`
+- **LLM Router** (`agent/llm.py`) — Runtime model selection via MODEL_MAP, automatic escalation on low confidence, cost logging with actual pricing calculations to `cost_log.json`
 
 ### Stage 3: Intelligent Conversation (✅ Complete)
 - **Gap Analyzer** (`agent/gap_analyzer.py`) — Compares knowledge base vs. deliverable requirements, identifies missing fields, generates role-aware recommendations
 - **Conversation Agent** (`agent/conversation_agent.py`) — Interface-agnostic message handler, role-aware question generation, session logging to `knowledge/sessions/`
 
+### Stage 4: Full Standardization Phase (✅ Complete)
+- **SIPOC Generator** (`agent/sipoc_generator.py`) — Extracts Suppliers, Inputs, Process, Outputs, Customers from knowledge base
+- **Process Map Generator** (`agent/process_map_generator.py`) — Builds step-by-step process map with performers, systems, decisions
+- **Baseline Metrics Generator** (`agent/baseline_metrics_generator.py`) — Aggregates volume, time, cost, quality, SLA metrics
+- **Flowchart Generator** (`agent/flowchart_generator.py`) — Generates Mermaid flowcharts from process map
+- **Exception Register Generator** (`agent/exception_register_generator.py`) — Compiles known exceptions and handling procedures
+- **Standardization Orchestrator** (`agent/standardization_deliverables.py`) — Coordinates all 5 deliverable generators and produces complete standardization package
+
 ### Testing (✅ Complete)
-- **Integration Test** (`test_integration_1_to_3.py`) — End-to-end test exercising all Stages 1-3, verifies project creation → knowledge processing → gap analysis → conversation logging
+- **Integration Test Stage 1-3** (`test_integration_1_to_3.py`) — Tests project creation → knowledge processing → gap analysis → conversation logging
+- **Integration Test Stage 1-4** (`test_integration_1_to_4.py`) — End-to-end test including all standardization deliverable generation
 
-### What's Next (Stage 4+)
-**Stage 4: Full Standardization Phase** — Implement SIPOC generator, process map analyzer, baseline metrics aggregator, flowchart generator from map, exception register builder
-
+### What's Next (Stage 5+)
 **Stage 5: Gate Review** — Implement gate evaluation agent to check deliverable completeness and unlock phases
 
 **Stages 6-10:** Optimization, Digitization, Automation, Autonomization phases following the same pattern
@@ -139,6 +147,15 @@ response = ca.handle_message(
 # Logs turn to: projects/{project_id}/knowledge/sessions/session_YYYY-MM-DD.json
 ```
 
+### Generate Stage 4 Deliverables
+```python
+from agent.standardization_deliverables import StandardizationDeliverablesOrchestrator
+orchestrator = StandardizationDeliverablesOrchestrator()
+results = orchestrator.generate_all_deliverables("my-process-automation")
+# Generates: SIPOC, Process Map, Baseline Metrics, Flowchart, Exception Register
+# Saved to: projects/{project_id}/deliverables/1-standardization/
+```
+
 ### Check Status
 ```bash
 python cli.py status my-process-automation
@@ -146,14 +163,17 @@ python cli.py status my-process-automation
 
 ### Run Integration Tests
 ```bash
+# Test Stages 1-3
 python test_integration_1_to_3.py
+
+# Test complete workflow including Stage 4
+python test_integration_1_to_4.py
 ```
-Tests Stages 1-3 complete workflow end-to-end.
 
 ## Important Notes
 
 - The `.env` file contains API keys and is NOT committed to git.
-- Each project maintains independent cost tracking in `cost_log.json`.
+- Each project maintains independent cost tracking in `cost_log.json` with actual API costs calculated based on token usage and current model pricing.
 - Knowledge consolidation is incremental — files are never re-processed unless explicitly cleared.
 - Session logging is automatic and date-based; multiple conversations on the same day are appended to the same session file.
 - Model selection is centralized in `agent/llm.py` via `DEFAULT_MODEL_MAP`. Override specific models via `.env` if needed.

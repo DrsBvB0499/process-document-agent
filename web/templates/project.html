@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.project_name }} - Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ project.project_name }}</h1>
+        <p class="subtitle">Project ID: {{ project_id }}</p>
+        {% if project.description %}
+        <p class="project-description">{{ project.description }}</p>
+        {% endif %}
+    </div>
+    <div class="header-actions">
+        <a href="/project/{{ project_id }}/chat" class="btn btn-primary">💬 Chat</a>
+        <a href="/project/{{ project_id }}/deliverables" class="btn btn-secondary">📄 Deliverables</a>
+    </div>
+</div>
+
+<!-- Status Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">📚</div>
+        <div class="stat-content">
+            <div class="stat-label">Knowledge Base</div>
+            <div class="stat-value">{{ kb_facts }} facts</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">📁</div>
+        <div class="stat-content">
+            <div class="stat-label">Uploaded Files</div>
+            <div class="stat-value">{{ uploaded_files }} files</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🤖</div>
+        <div class="stat-content">
+            <div class="stat-label">API Calls</div>
+            <div class="stat-value">{{ api_calls }} calls</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💰</div>
+        <div class="stat-content">
+            <div class="stat-label">Total Cost</div>
+            <div class="stat-value">${{ "%.4f"|format(total_cost) }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Phase Progress -->
+<div class="section">
+    <h2>📊 Phase Progress</h2>
+    <div class="phase-timeline">
+        {% for phase in project.phases %}
+        <div class="phase-item {% if loop.index == project.current_phase %}active{% elif loop.index < project.current_phase %}completed{% endif %}">
+            <div class="phase-number">{{ loop.index }}</div>
+            <div class="phase-info">
+                <div class="phase-name">{{ phase.name }}</div>
+                <div class="phase-status">
+                    {% if loop.index < project.current_phase %}
+                    <span class="status-badge status-completed">✓ Completed</span>
+                    {% elif loop.index == project.current_phase %}
+                    <span class="status-badge status-active">→ In Progress</span>
+                    {% else %}
+                    <span class="status-badge status-locked">🔒 Locked</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="section">
+    <h2>🚀 Actions</h2>
+    <div class="actions-grid">
+        <!-- Upload Files -->
+        <div class="action-card">
+            <h3>📤 Upload Files</h3>
+            <p>Upload process documentation, SOPs, or other materials</p>
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <input type="file" id="file-input" name="file" accept=".pdf,.docx,.txt,.csv,.json,.png,.jpg,.jpeg" multiple>
+                    <label for="file-input" class="file-label">Choose files...</label>
+                    <div id="file-list"></div>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </form>
+            <div id="upload-status"></div>
+        </div>
+
+        <!-- Process Knowledge -->
+        <div class="action-card">
+            <h3>🧠 Process Knowledge</h3>
+            <p>Extract structured information from uploaded files</p>
+            <button id="process-btn" class="btn btn-primary">Process Files</button>
+            <div id="process-status"></div>
+        </div>
+
+        <!-- Analyze Gaps -->
+        <div class="action-card">
+            <h3>🔍 Analyze Gaps</h3>
+            <p>Identify missing information for deliverables</p>
+            <button id="analyze-btn" class="btn btn-primary">Run Gap Analysis</button>
+            <div id="analyze-status"></div>
+        </div>
+
+        <!-- Generate Deliverables -->
+        <div class="action-card">
+            <h3>📋 Generate Deliverables</h3>
+            <p>Create SIPOC, Process Map, Metrics, and more</p>
+            <button id="generate-btn" class="btn btn-primary">Generate All</button>
+            <div id="generate-status"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Phase Deliverables -->
+<div class="section">
+    <h2>📄 Current Phase Deliverables</h2>
+    {% set current_phase = project.phases[project.current_phase - 1] %}
+    <div class="deliverables-list">
+        {% for deliverable in current_phase.deliverables %}
+        <div class="deliverable-item">
+            <div class="deliverable-icon">{% if deliverable.completed %}✅{% else %}⏳{% endif %}</div>
+            <div class="deliverable-info">
+                <div class="deliverable-name">{{ deliverable.name }}</div>
+                <div class="deliverable-meta">
+                    <span class="deliverable-status">{{ 'Completed' if deliverable.completed else 'Pending' }}</span>
+                    {% if deliverable.completed_at %}
+                    <span class="deliverable-date">• {{ deliverable.completed_at.split('T')[0] }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PROJECT_ID = "{{ project_id }}";
+
+// File upload handling
+document.getElementById('file-input').addEventListener('change', function(e) {
+    const fileList = document.getElementById('file-list');
+    fileList.innerHTML = '';
+    Array.from(e.target.files).forEach(file => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.textContent = file.name;
+        fileList.appendChild(fileItem);
+    });
+});
+
+document.getElementById('upload-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const fileInput = document.getElementById('file-input');
+    const statusDiv = document.getElementById('upload-status');
+
+    if (!fileInput.files.length) {
+        statusDiv.innerHTML = '<div class="alert alert-error">Please select at least one file</div>';
+        return;
+    }
+
+    statusDiv.innerHTML = '<div class="alert alert-info">Uploading...</div>';
+
+    for (const file of fileInput.files) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch(`/api/projects/${PROJECT_ID}/upload`, {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                statusDiv.innerHTML += `<div class="alert alert-success">✓ ${file.name} uploaded</div>`;
+            } else {
+                statusDiv.innerHTML += `<div class="alert alert-error">✗ ${file.name}: ${data.error}</div>`;
+            }
+        } catch (error) {
+            statusDiv.innerHTML += `<div class="alert alert-error">✗ ${file.name}: ${error.message}</div>`;
+        }
+    }
+
+    fileInput.value = '';
+    document.getElementById('file-list').innerHTML = '';
+    setTimeout(() => location.reload(), 2000);
+});
+
+// Process knowledge
+document.getElementById('process-btn').addEventListener('click', async function() {
+    const btn = this;
+    const statusDiv = document.getElementById('process-status');
+
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
+    statusDiv.innerHTML = '<div class="alert alert-info">Extracting knowledge from files...</div>';
+
+    try {
+        const response = await fetch(`/api/projects/${PROJECT_ID}/process`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ Processed successfully! Extracted ${data.knowledge_base?.facts?.length || 0} facts</div>`;
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+        }
+    } catch (error) {
+        statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Process Files';
+    }
+});
+
+// Analyze gaps
+document.getElementById('analyze-btn').addEventListener('click', async function() {
+    const btn = this;
+    const statusDiv = document.getElementById('analyze-status');
+
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+    statusDiv.innerHTML = '<div class="alert alert-info">Running gap analysis...</div>';
+
+    try {
+        const response = await fetch(`/api/projects/${PROJECT_ID}/analyze`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            const completeness = data.current_phase?.completeness_percent || 0;
+            const missing = data.current_phase?.missing_count || 0;
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ Analysis complete! Completeness: ${completeness}% (${missing} gaps identified)</div>`;
+        } else {
+            statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+        }
+    } catch (error) {
+        statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run Gap Analysis';
+    }
+});
+
+// Generate deliverables
+document.getElementById('generate-btn').addEventListener('click', async function() {
+    const btn = this;
+    const statusDiv = document.getElementById('generate-status');
+
+    if (!confirm('This will generate all deliverables for the Standardization phase. Continue?')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    statusDiv.innerHTML = '<div class="alert alert-info">Generating deliverables... This may take a minute.</div>';
+
+    try {
+        const response = await fetch(`/api/projects/${PROJECT_ID}/generate`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            const successCount = Object.values(data).filter(v => v.status === 'success').length;
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ Generated ${successCount} deliverables successfully!</div>`;
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+        }
+    } catch (error) {
+        statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate All';
+    }
+});
+</script>
+{% endblock %}

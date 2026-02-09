@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from agent.llm import call_model
+from agent.validators import validate_project_id
 
 
 class GapAnalyzer:
@@ -71,17 +72,24 @@ class GapAnalyzer:
 
     def analyze_project(self, project_id: str) -> Dict[str, Any]:
         """Analyze gaps for a project in its current phase.
-        
+
         Compares knowledge_base.json against deliverable requirements
         and produces a gap brief for the Conversation Agent.
-        
+
         Args:
             project_id: The project ID to analyze
-        
+
         Returns:
             Dictionary with keys: phase, current_deliverables, knowledge_summary,
             deliverable_gaps, recommendations, next_steps
         """
+        # Validate project_id to prevent path traversal attacks
+        if not validate_project_id(project_id):
+            return {
+                "status": "error",
+                "message": f"Invalid project ID '{project_id}'. Must contain only lowercase letters, numbers, and hyphens.",
+            }
+
         project_path = self.projects_root / project_id
         extracted_path = project_path / "knowledge" / "extracted"
 

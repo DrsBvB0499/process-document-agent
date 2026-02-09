@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Deliverables - {{ project.project_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📄 Deliverables</h1>
+        <p class="subtitle">{{ project.project_name }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="/project/{{ project_id }}" class="btn btn-secondary">← Back to Dashboard</a>
+    </div>
+</div>
+
+{% if deliverables %}
+<div class="deliverables-section">
+    {% set phases = deliverables|groupby('phase') %}
+    {% for phase, phase_deliverables in phases %}
+    <div class="phase-section">
+        <h2>{{ phase|replace('-', ' ')|title }}</h2>
+        <div class="deliverables-grid">
+            {% for deliverable in phase_deliverables %}
+            <div class="deliverable-card">
+                <div class="deliverable-icon">
+                    {% if deliverable.name.endswith('.json') %}📋
+                    {% elif deliverable.name.endswith('.docx') %}📝
+                    {% elif deliverable.name.endswith('.pdf') %}📄
+                    {% elif deliverable.name.endswith('.png') or deliverable.name.endswith('.jpg') %}🖼️
+                    {% else %}📎
+                    {% endif %}
+                </div>
+                <div class="deliverable-info">
+                    <h3>{{ deliverable.name }}</h3>
+                    <div class="deliverable-meta">
+                        <span>{{ (deliverable.size / 1024)|round(1) }} KB</span>
+                        <span>{{ deliverable.modified }}</span>
+                    </div>
+                </div>
+                <div class="deliverable-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="viewDeliverable('{{ deliverable.path }}', '{{ deliverable.name }}')">View</button>
+                    <a href="/api/projects/{{ project_id }}/deliverables/{{ deliverable.path }}" class="btn btn-sm btn-primary" download>Download</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <h2>No Deliverables Yet</h2>
+    <p>Generate deliverables from the project dashboard to see them here.</p>
+    <a href="/project/{{ project_id }}" class="btn btn-primary">Go to Dashboard</a>
+</div>
+{% endif %}
+
+<!-- View Modal -->
+<div id="view-modal" class="modal">
+    <div class="modal-content modal-large">
+        <span class="close">&times;</span>
+        <h2 id="modal-title">Deliverable</h2>
+        <div id="modal-body"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PROJECT_ID = "{{ project_id }}";
+const modal = document.getElementById('view-modal');
+const closeBtn = modal.querySelector('.close');
+
+closeBtn.onclick = function() {
+    modal.style.display = 'none';
+}
+
+window.onclick = function(event) {
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function viewDeliverable(path, name) {
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+
+    modalTitle.textContent = name;
+    modalBody.innerHTML = '<div class="loading">Loading...</div>';
+    modal.style.display = 'block';
+
+    try {
+        const response = await fetch(`/api/projects/${PROJECT_ID}/deliverables/${path}`);
+
+        if (!response.ok) {
+            throw new Error('Failed to load deliverable');
+        }
+
+        // Check if it's JSON
+        if (name.endsWith('.json')) {
+            const data = await response.json();
+            modalBody.innerHTML = `<pre class="json-viewer">${JSON.stringify(data, null, 2)}</pre>`;
+        }
+        // Check if it's text
+        else if (name.endsWith('.txt') || name.endsWith('.md')) {
+            const text = await response.text();
+            modalBody.innerHTML = `<pre class="text-viewer">${escapeHtml(text)}</pre>`;
+        }
+        // For binary files, show download link
+        else {
+            modalBody.innerHTML = `
+                <div class="file-preview">
+                    <p>This file type cannot be previewed in the browser.</p>
+                    <a href="/api/projects/${PROJECT_ID}/deliverables/${path}" class="btn btn-primary" download>Download ${name}</a>
+                </div>
+            `;
+        }
+    } catch (error) {
+        modalBody.innerHTML = `<div class="alert alert-error">Error loading deliverable: ${error.message}</div>`;
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

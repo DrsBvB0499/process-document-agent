@@ -22,9 +22,9 @@ DEFAULT_MODEL_MAP = {
     "knowledge_processor": "gpt-3.5-turbo-16k",
     "gap_analyzer": "gpt-3.5-turbo",
     "conversation_agent": "gpt-4o",
-    "document_generator": "gpt-4.1-mini",
+    "document_generator": "gpt-4o-mini",
     "gate_review_agent": "gpt-4o",
-    "mermaid_generator": "gpt-4.1-mini",
+    "mermaid_generator": "gpt-4o-mini",
 }
 
 
@@ -67,8 +67,12 @@ def append_cost_log(projects_root: Path, project_id: str, entry: Dict[str, Any])
 
     logs.append(entry)
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(logs, f, indent=2, ensure_ascii=False)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(logs, f, indent=2, ensure_ascii=False)
+    except Exception:
+        # Silently fail on cost logging errors to avoid disrupting the main flow
+        pass
 
 
 def _mock_model_response(prompt: str) -> Tuple[str, int, int, float, float]:
@@ -154,20 +158,29 @@ def call_model(
     # If OPENAI_API_KEY is present and model name contains 'gpt', call OpenAI.
     if "gpt" in model and has_openai:
         try:
-            import openai
+            from openai import OpenAI
 
-            openai.api_key = os.environ.get("OPENAI_API_KEY")
-            resp = openai.ChatCompletion.create(
+            client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            resp = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
             )
             text = resp.choices[0].message.content
-            # token accounting: some SDKs provide usage, handle gracefully
-            usage = resp.get("usage", {})
-            in_toks = usage.get("prompt_tokens", 0)
-            out_toks = usage.get("completion_tokens", 0)
-            cost = 0.0  # cost estimation could be added here
+            # token accounting: modern API provides usage in response
+            in_toks = resp.usage.prompt_tokens if resp.usage else 0
+            out_toks = resp.usage.completion_tokens if resp.usage else 0
+
+            # Calculate actual cost based on model pricing (as of 2026)
+            if "gpt-4o" in model:
+                # gpt-4o: $5/1M input, $15/1M output
+                cost = (in_toks / 1_000_000 * 5.0) + (out_toks / 1_000_000 * 15.0)
+            elif "gpt-3.5-turbo" in model:
+                # gpt-3.5-turbo: $0.50/1M input, $1.50/1M output
+                cost = (in_toks / 1_000_000 * 0.5) + (out_toks / 1_000_000 * 1.5)
+            else:
+                cost = 0.0
+
             confidence = 0.9
         except Exception as e:
             # Fall back to mock if API call fails
@@ -178,11 +191,30 @@ def call_model(
             from anthropic import Anthropic
 
             client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-            resp = client.completions.create(model=model, prompt=prompt, max_tokens_to_sample=512)
-            text = resp.get("completion", "")
-            in_toks = 0
-            out_toks = 0
-            cost = 0.0
+            # Use modern Messages API instead of deprecated Completions API
+            resp = client.messages.create(
+                model=model,
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            text = resp.content[0].text if resp.content else ""
+            # Modern API provides usage information
+            in_toks = resp.usage.input_tokens if resp.usage else 0
+            out_toks = resp.usage.output_tokens if resp.usage else 0
+
+            # Calculate actual cost based on Claude pricing (as of 2026)
+            if "claude-3-5-sonnet" in model or "claude-sonnet" in model:
+                # Claude Sonnet 3.5: $3/1M input, $15/1M output
+                cost = (in_toks / 1_000_000 * 3.0) + (out_toks / 1_000_000 * 15.0)
+            elif "claude-3-opus" in model or "claude-opus" in model:
+                # Claude Opus: $15/1M input, $75/1M output
+                cost = (in_toks / 1_000_000 * 15.0) + (out_toks / 1_000_000 * 75.0)
+            elif "claude-3-haiku" in model or "claude-haiku" in model:
+                # Claude Haiku: $0.25/1M input, $1.25/1M output
+                cost = (in_toks / 1_000_000 * 0.25) + (out_toks / 1_000_000 * 1.25)
+            else:
+                cost = 0.0
+
             confidence = 0.88
         except Exception:
             text, in_toks, out_toks, cost, confidence = _mock_model_response(prompt)

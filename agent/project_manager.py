@@ -142,9 +142,12 @@ class ProjectManager:
         
         # Save project.json
         project_file = project_path / "project.json"
-        with open(project_file, 'w', encoding='utf-8') as f:
-            json.dump(project_data, f, indent=2, ensure_ascii=False)
-        
+        try:
+            with open(project_file, 'w', encoding='utf-8') as f:
+                json.dump(project_data, f, indent=2, ensure_ascii=False)
+        except (IOError, OSError) as e:
+            raise ValueError(f"Failed to save project.json: {e}")
+
         return Project(project_data)
     
     def get_project(self, project_id: str) -> Optional[Project]:
@@ -448,35 +451,35 @@ class ProjectManager:
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/1_standardization/sipoc.json",
+                            "file": "deliverables/1-standardization/sipoc.json",
                             "gaps": []
                         },
                         "process_map": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/1_standardization/process_map.json",
+                            "file": "deliverables/1-standardization/process_map.json",
                             "gaps": []
                         },
                         "baseline_metrics": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/1_standardization/baseline_metrics.json",
+                            "file": "deliverables/1-standardization/baseline_metrics.json",
                             "gaps": []
                         },
                         "exception_register": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/1_standardization/exceptions.json",
+                            "file": "deliverables/1-standardization/exceptions.json",
                             "gaps": []
                         },
                         "flowchart": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/1_standardization/flowchart.mmd",
+                            "file": "deliverables/1-standardization/flowchart.mmd",
                             "gaps": []
                         }
                     }
@@ -494,21 +497,21 @@ class ProjectManager:
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/2_optimization/waste_analysis.json",
+                            "file": "deliverables/2-optimization/waste_analysis.json",
                             "gaps": []
                         },
                         "to_be_process": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/2_optimization/to_be_process.json",
+                            "file": "deliverables/2-optimization/to_be_process.json",
                             "gaps": []
                         },
                         "improvement_register": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/2_optimization/improvement_register.json",
+                            "file": "deliverables/2-optimization/improvement_register.json",
                             "gaps": []
                         }
                     }
@@ -526,21 +529,21 @@ class ProjectManager:
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/3_digitization/system_integration_map.json",
+                            "file": "deliverables/3-digitization/system_integration_map.json",
                             "gaps": []
                         },
                         "data_model": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/3_digitization/data_model.json",
+                            "file": "deliverables/3-digitization/data_model.json",
                             "gaps": []
                         },
                         "access_security_plan": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/3_digitization/access_security_plan.json",
+                            "file": "deliverables/3-digitization/access_security_plan.json",
                             "gaps": []
                         }
                     }
@@ -558,28 +561,28 @@ class ProjectManager:
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/4_automation/automation_spec.json",
+                            "file": "deliverables/4-automation/automation_spec.json",
                             "gaps": []
                         },
                         "test_plan": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/4_automation/test_plan.json",
+                            "file": "deliverables/4-automation/test_plan.json",
                             "gaps": []
                         },
                         "runbook": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/4_automation/runbook.json",
+                            "file": "deliverables/4-automation/runbook.json",
                             "gaps": []
                         },
                         "deployment_checklist": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/4_automation/deployment_checklist.json",
+                            "file": "deliverables/4-automation/deployment_checklist.json",
                             "gaps": []
                         }
                     }
@@ -597,21 +600,21 @@ class ProjectManager:
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/5_autonomization/decision_rules.json",
+                            "file": "deliverables/5-autonomization/decision_rules.json",
                             "gaps": []
                         },
                         "monitoring_dashboard_spec": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/5_autonomization/monitoring_dashboard_spec.json",
+                            "file": "deliverables/5-autonomization/monitoring_dashboard_spec.json",
                             "gaps": []
                         },
                         "learning_loop_design": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
-                            "file": "deliverables/5_autonomization/learning_loop_design.json",
+                            "file": "deliverables/5-autonomization/learning_loop_design.json",
                             "gaps": []
                         }
                     }
