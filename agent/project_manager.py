@@ -70,11 +70,20 @@ class Project:
     @property
     def project_name(self) -> str:
         return self.data.get("project_name", "")
-    
+
+    @property
+    def description(self) -> str:
+        return self.data.get("description", "")
+
+    @property
+    def created(self) -> str:
+        # Support both 'created' and 'created_at' for backwards compatibility
+        return self.data.get("created") or self.data.get("created_at", "")
+
     @property
     def current_phase(self) -> str:
         return self.data.get("current_phase", "standardization")
-    
+
     @property
     def phases(self) -> Dict:
         return self.data.get("phases", {})
