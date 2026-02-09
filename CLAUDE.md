@@ -19,6 +19,8 @@ See `system_architecture.md` for the full system design.
 - **Project Manager** (`agent/project_manager.py`) — manages project lifecycle, folder structure, and `project.json` state tracker (Stage 1 Foundation).
 - **CLI Interface** (`cli.py`) — command-line tool to create projects, list projects, check status, and inspect project state (Stage 1 Foundation).
 - **Knowledge Processor** (`agent/knowledge_processor.py`) — reads uploaded files (PDF, DOCX, TXT, images), extracts structured information using LLM, consolidates into `knowledge_base.json` and `analysis_log.json` (Stage 2).
+- **Gap Analyzer** (`agent/gap_analyzer.py`) — compares knowledge base against deliverable requirements (SIPOC, process map, baseline metrics, etc.), identifies missing fields, and produces a gap brief (Stage 3).
+- **Conversation Agent** (`agent/conversation_agent.py`) — interface-agnostic conversational agent that takes gap briefs as input, asks role-aware targeted questions, and logs all conversation turns to `sessions/` (Stage 3).
 
 ### What's Next (Stage 1: Foundation)
 We are building the **project-based foundation** as described in system_architecture.md Section 6, Stage 1:
