@@ -19,12 +19,12 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 DEFAULT_MODEL_MAP = {
-    "knowledge_processor": "gpt-4o-mini",
-    "gap_analyzer": "gpt-4o-mini",
+    "knowledge_processor": "gpt-3.5-turbo-16k",
+    "gap_analyzer": "gpt-3.5-turbo",
     "conversation_agent": "gpt-4o",
-    "document_generator": "gpt-4o-mini",
+    "document_generator": "gpt-4.1-mini",
     "gate_review_agent": "gpt-4o",
-    "mermaid_generator": "gpt-4o-mini",
+    "mermaid_generator": "gpt-4.1-mini",
 }
 
 

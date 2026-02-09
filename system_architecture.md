@@ -394,12 +394,12 @@ Not every agent needs the most expensive model. The system uses a **model map** 
 ```python
 # Model assignments per agent role
 MODEL_MAP = {
-    "knowledge_processor": "gpt-4o-mini",   # Reads & extracts facts — high volume, simple task
-    "gap_analyzer":        "gpt-4o-mini",   # Compares lists — structured, deterministic
-    "conversation_agent":  "gpt-4o",         # Talks to humans — needs nuance, context, empathy
-    "document_generator":  "gpt-4o-mini",   # Structured extraction — follows templates
-    "gate_review_agent":   "gpt-4o",         # Judgment calls — needs reasoning quality
-    "mermaid_generator":   "gpt-4o-mini",   # Code generation — structured output
+  "knowledge_processor":        "gpt-3.5-turbo-16k",  # cheap but bigger context
+  "gap_analyzer":               "gpt-3.5-turbo",     # very cheap logic / diffing
+  "conversation_agent":         "gpt-4o",            # high reasoning quality
+  "document_generator":         "gpt-4.1-mini",      # solid text generation at mid cost
+  "gate_review_agent":          "gpt-4o",            # high-impact summary/decision
+  "mermaid_generator":          "gpt-4.1-mini",      # structured code generation
 }
 ```
 
