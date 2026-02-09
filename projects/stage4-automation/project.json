@@ -1,8 +1,8 @@
 {
-  "project_id": "vendor-onboarding-automation",
-  "project_name": "Vendor Onboarding Automation",
-  "description": "End-to-end vendor setup and approval process",
-  "created": "2026-02-09T15:12:57.482062",
+  "project_id": "stage4-automation",
+  "project_name": "Stage4-Automation",
+  "description": "Test project for Stage 4 deliverables generation",
+  "created": "2026-02-09T15:31:19.072537",
   "current_phase": "standardization",
   "phases": {
     "standardization": {
@@ -212,8 +212,8 @@
   },
   "team": {
     "process_owner": {
-      "name": "Sarah Martinez",
-      "email": "sarah.martinez@company.com"
+      "name": "Test User",
+      "email": "test-user@example.com"
     },
     "business_analyst": {
       "name": "TBD",

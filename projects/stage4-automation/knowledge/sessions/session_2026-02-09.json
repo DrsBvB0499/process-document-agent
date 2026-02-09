@@ -1,0 +1,23 @@
+[
+  {
+    "timestamp": "2026-02-09T14:31:19.128801Z",
+    "user_id": "alice@company.com",
+    "user_role": "sme",
+    "user_message": "The vendor onboarding has 5 main steps that take about 15 business days. We process about 50 new vendors monthly.",
+    "agent_response": "[MOCK RESPONSE] You are a consultant gathering information for process improvement.\n\nUSER ROLE: technical | DEPTH: tactical\n\nUSER'S LAST MESSAGE:\n\"The vendor onboarding has 5 main steps that take about 15 business da..."
+  },
+  {
+    "timestamp": "2026-02-09T14:31:19.169805Z",
+    "user_id": "bob@procurement.com",
+    "user_role": "process_owner",
+    "user_message": "Our SLA is 10 business days for standard vendors. We have some exceptions - about 25% of international vendors need extra documentation.",
+    "agent_response": "[MOCK RESPONSE] You are a consultant gathering information for process improvement.\n\nUSER ROLE: business | DEPTH: strategic\n\nUSER'S LAST MESSAGE:\n\"Our SLA is 10 business days for standard vendors. We have some except..."
+  },
+  {
+    "timestamp": "2026-02-09T14:31:19.203140Z",
+    "user_id": "charlie@compliance.com",
+    "user_role": "sme",
+    "user_message": "Compliance checks about 5% of applications are rejected. We use SAP for vendor master data and Salesforce for tracking.",
+    "agent_response": "[MOCK RESPONSE] You are a consultant gathering information for process improvement.\n\nUSER ROLE: technical | DEPTH: tactical\n\nUSER'S LAST MESSAGE:\n\"Compliance checks about 5% of applications are rejected. We use SAP f..."
+  }
+]

@@ -1,0 +1,29 @@
+{
+  "status": "success",
+  "project_id": "stage4-automation",
+  "timestamp": "2026-02-09T15:31:19.224180",
+  "sipoc": {
+    "suppliers": [],
+    "inputs": [],
+    "process": {},
+    "outputs": [],
+    "customers": []
+  },
+  "completeness": {
+    "suppliers": 0,
+    "inputs": 0,
+    "process": 0,
+    "outputs": 0,
+    "customers": 0,
+    "overall": 0
+  },
+  "missing_fields": [
+    "suppliers",
+    "inputs",
+    "process_owner, process_name, process_description",
+    "outputs",
+    "customers"
+  ],
+  "sources_used": {},
+  "facts_extracted": 0
+}
