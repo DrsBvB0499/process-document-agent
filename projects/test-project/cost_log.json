@@ -11,5 +11,18 @@
     "cost_usd": 0.0,
     "escalated": false,
     "duration_ms": 0
+  },
+  {
+    "timestamp": "2026-02-09T13:42:41.586358Z",
+    "project_id": "test-project",
+    "agent": "knowledge_processor",
+    "model": "gpt-3.5-turbo-16k",
+    "phase": null,
+    "deliverable": null,
+    "input_tokens": 562,
+    "output_tokens": 375,
+    "cost_usd": 0.0,
+    "escalated": false,
+    "duration_ms": 0
   }
 ]

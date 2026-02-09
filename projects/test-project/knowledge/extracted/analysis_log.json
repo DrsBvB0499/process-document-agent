@@ -1,0 +1,19 @@
+[
+  {
+    "timestamp": "2026-02-09T13:42:41.616239Z",
+    "source_file": "sample_process_doc.txt",
+    "file_type": ".txt",
+    "file_size_bytes": 1757,
+    "status": "success",
+    "model": "gpt-3.5-turbo-16k",
+    "input_tokens": 562,
+    "output_tokens": 375,
+    "cost_usd": 0.0,
+    "extraction": {
+      "facts": [],
+      "sources": [],
+      "exceptions": [],
+      "unknowns": []
+    }
+  }
+]

@@ -16,6 +16,9 @@ See `system_architecture.md` for the full system design.
 - **Document Generator** (`agent/document_generator.py`) — older static document generator (being replaced by intelligent_doc_generator.py).
 - **Flowchart Generator** (`agent/flowchart_generator.py`) — Pillow-based flowchart renderer (being replaced by Mermaid + mmdc approach).
 - **Session Bridge** (`agent/session_to_document.py`) — older bridge script (being replaced by intelligent_doc_generator.py).
+- **Project Manager** (`agent/project_manager.py`) — manages project lifecycle, folder structure, and `project.json` state tracker (Stage 1 Foundation).
+- **CLI Interface** (`cli.py`) — command-line tool to create projects, list projects, check status, and inspect project state (Stage 1 Foundation).
+- **Knowledge Processor** (`agent/knowledge_processor.py`) — reads uploaded files (PDF, DOCX, TXT, images), extracts structured information using LLM, consolidates into `knowledge_base.json` and `analysis_log.json` (Stage 2).
 
 ### What's Next (Stage 1: Foundation)
 We are building the **project-based foundation** as described in system_architecture.md Section 6, Stage 1:
