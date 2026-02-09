@@ -50,6 +50,9 @@ outputs/
 *.png
 *.mmd
 
+# User project data (contains uploaded files and generated deliverables)
+projects/
+
 # Temporary files
 *.tmp
 *.temp
