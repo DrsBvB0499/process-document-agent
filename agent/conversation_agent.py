@@ -148,11 +148,15 @@ class ConversationAgent:
         """Generate a response guided by gap brief."""
         role_config = self.ROLE_CONFIG.get(user_role, self.ROLE_CONFIG["sme"])
 
+        # Load recent conversation history to avoid asking same questions
+        conversation_history = self._get_recent_history(project_id, limit=5)
+
         # Build a prompt that tells the LLM what gaps exist and what to ask
         prompt = self._build_response_prompt(
             user_message=message,
             role_config=role_config,
             gap_brief=gap_brief,
+            conversation_history=conversation_history,
         )
 
         # Call LLM
@@ -264,11 +268,41 @@ Now write a similar greeting for this user and project.
 
         return greeting
 
+    def _get_recent_history(self, project_id: str, limit: int = 5) -> str:
+        """Load recent conversation turns to provide context.
+
+        Args:
+            project_id: The project ID
+            limit: Maximum number of recent turns to include
+
+        Returns:
+            Formatted conversation history string
+        """
+        session_data = self.get_session_history(project_id)
+        turns = session_data.get("turns", [])
+
+        if not turns:
+            return "No previous conversation history."
+
+        # Get last N turns
+        recent_turns = turns[-limit:] if len(turns) > limit else turns
+
+        # Format for prompt
+        history_lines = []
+        for turn in recent_turns:
+            user_msg = turn.get("user_message", "")
+            agent_resp = turn.get("agent_response", "")
+            history_lines.append(f"User: {user_msg}")
+            history_lines.append(f"Agent: {agent_resp}")
+
+        return "\n".join(history_lines)
+
     def _build_response_prompt(
         self,
         user_message: str,
         role_config: Dict[str, Any],
         gap_brief: Dict[str, Any],
+        conversation_history: str = "",
     ) -> str:
         """Build a prompt that guides the LLM on how to respond."""
         deliverable_gaps = gap_brief.get("deliverable_gaps", [])
@@ -299,19 +333,24 @@ STILL MISSING: {', '.join(missing_fields[:3])}
 
 USER'S ROLE: {role.capitalize()} | CONVERSATION STYLE: {depth}
 
-USER'S LAST MESSAGE:
+RECENT CONVERSATION HISTORY:
+{conversation_history if conversation_history else "No previous conversation."}
+
+USER'S CURRENT MESSAGE:
 "{user_message}"
 
 WHAT WE'RE WORKING ON:
 {gap_context}
 
 CRITICAL CONVERSATION RULES:
-1. **ONE QUESTION AT A TIME** - Never ask multiple questions in one response
-2. **EXPLAIN FIRST** - Before asking, explain what you're asking for in simple terms (no jargon like "SIPOC")
-3. **PROVIDE AN EXAMPLE** - Give a concrete example to help the user understand
-4. **EXPLAIN WHY** - Tell them why this information is important for the analysis
-5. **BE ENCOURAGING** - Acknowledge what they've already shared before asking for more
-6. **SIMPLE LANGUAGE** - Avoid technical terms unless the user is a developer
+1. **READ THE HISTORY** - Review what the user has already told you. NEVER ask for information they've already provided!
+2. **ONE QUESTION AT A TIME** - Never ask multiple questions in one response
+3. **EXPLAIN FIRST** - Before asking, explain what you're asking for in simple terms (no jargon like "SIPOC")
+4. **PROVIDE AN EXAMPLE** - Give a concrete example to help the user understand
+5. **EXPLAIN WHY** - Tell them why this information is important for the analysis
+6. **BE ENCOURAGING** - Acknowledge what they've already shared before asking for more
+7. **SIMPLE LANGUAGE** - Avoid technical terms unless the user is a developer
+8. **MOVE FORWARD** - If they've answered your question, acknowledge it and move to the NEXT gap item
 
 RESPONSE STRUCTURE (follow this exactly):
 - First: Acknowledge their input or answer their question warmly
