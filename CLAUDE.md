@@ -6,7 +6,7 @@ This is the **Intelligent Automation Roadmap Agent System** — a multi-agent sy
 
 The system follows 5 phases: Standardization → Optimization → Digitization → Automation → Autonomization. Each phase has a gate checkpoint with specific deliverables.
 
-See `ARCHITECTURE.md` for the full system design.
+See `system_architecture.md` for the full system design.
 
 ## Current State
 
@@ -18,7 +18,7 @@ See `ARCHITECTURE.md` for the full system design.
 - **Session Bridge** (`agent/session_to_document.py`) — older bridge script (being replaced by intelligent_doc_generator.py).
 
 ### What's Next (Stage 1: Foundation)
-We are building the **project-based foundation** as described in ARCHITECTURE.md Section 6, Stage 1:
+We are building the **project-based foundation** as described in system_architecture.md Section 6, Stage 1:
 - Project folder structure with `project.json` state tracker
 - Knowledge folder where humans can upload files and the agent can store information
 - CLI to create projects, list projects, check status
@@ -38,7 +38,7 @@ We are building the **project-based foundation** as described in ARCHITECTURE.md
 
 ```
 process-document-agent/
-├── ARCHITECTURE.md          # System design document
+├── system_architecture.md   # System design document
 ├── CLAUDE.md                # This file — project context for Claude Code
 ├── README.md                # User-facing documentation
 ├── requirements.txt         # Python dependencies
@@ -49,9 +49,12 @@ process-document-agent/
 │   ├── intelligent_doc_generator.py  # AI-powered document generator
 │   ├── document_generator.py         # Legacy static generator
 │   ├── flowchart_generator.py        # Legacy Pillow-based flowcharts
-│   └── session_to_document.py        # Legacy bridge script
+│   ├── session_to_document.py        # Legacy bridge script
+│   └── project_manager.py            # Project lifecycle management (new)
 ├── outputs/                 # Generated outputs (session files, documents)
-└── projects/                # [TO BUILD] Project knowledge stores
+├── cli.py                   # Command-line interface for project management
+├── projects/                # Project knowledge stores with project.json
+└── PROJECT_JSON_SCHEMA.md   # Documentation of project.json structure
 ```
 
 ## Coding Conventions
@@ -60,6 +63,7 @@ process-document-agent/
 - **No hardcoded process names:** The system must be completely generic. Never reference specific processes like "Afkeurbewijzen" or "SD Light" in the codebase.
 - **Environment variables:** All API keys and config via `.env` file using `python-dotenv`. Use `Path(__file__).parent.parent / ".env"` pattern to find the .env from any script location.
 - **OpenAI API pattern:** Use `OpenAI` (sync) or `AsyncOpenAI` (async) client. System prompt as first message in the messages array. Low temperature (0.2) for structured extraction, default for conversation.
+- **Model selection:** Never hardcode a model name in agent code. Use the MODEL_MAP pattern from system_architecture.md Section 7.1. Each agent gets the right model for its task (mini for extraction, 4o for conversation/judgment). Models are configurable via `.env` overrides. Every API call must be logged with token counts and cost.
 - **File paths:** Use `pathlib.Path` for cross-platform compatibility. Use `os.makedirs(path, exist_ok=True)` before writing files.
 - **Error handling:** Always handle missing API keys, missing files, and API errors gracefully with clear user-facing error messages.
 - **Output files:** Generated documents go to `outputs/` (current) or `projects/<name>/deliverables/` (future).
@@ -71,6 +75,8 @@ process-document-agent/
 3. **Project state in `project.json`:** Single source of truth for what's been done and what's needed.
 4. **Phase-gated progression:** Each phase must pass a gate review before the next phase unlocks.
 5. **Role-aware:** The agent adapts its questions based on who it's talking to (PO, BA, SME, DEV).
+6. **Interface-agnostic core:** The agent core is a callable function `(message, user_id, project_id) → response`. No `input()` calls in core logic. CLI, web, and Teams are thin wrappers.
+7. **Right model for the job:** Use cheap models (gpt-4o-mini) for extraction and structured tasks, premium models (gpt-4o) for conversation and judgment. Escalate automatically on low confidence. Log all costs.
 
 ## Important Notes
 

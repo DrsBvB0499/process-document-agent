@@ -94,21 +94,27 @@ Each deliverable has this structure:
 ### Team Roster
 
 ```json
-"team_roster": {
-  "owner": {
+"team": {
+  "process_owner": {
     "name": "string",
-    "email": "string",
-    "role": "Project Owner"
+    "email": "string"
   },
-  "stakeholders": [
-    {
-      "name": "string",
-      "email": "string",
-      "role": "Business Analyst|SME|Developer|Tester"
-    }
-  ]
+  "business_analyst": {
+    "name": "string",
+    "email": "string"
+  },
+  "sme": {
+    "name": "string",
+    "email": "string"
+  },
+  "developer": {
+    "name": "string",
+    "email": "string"
+  }
 }
 ```
+
+The team object contains the core roles involved in the project. Use "TBD" as the name for roles not yet assigned.
 
 ### Gate Reviews
 
@@ -129,17 +135,17 @@ Each deliverable has this structure:
 ```json
 "knowledge_sources": [
   {
-    "source_id": "uuid string",
-    "filename": "string",
-    "file_type": "pdf|docx|xlsx|txt|json",
-    "uploaded_date": "ISO8601 timestamp",
-    "uploaded_by": "email@example.com",
-    "extraction_status": "pending|in_progress|complete|failed",
-    "extracted_folder": "knowledge/extracted/{source_id}/",
-    "notes": "string"
+    "file": "knowledge/uploaded/current_sop.pdf",
+    "type": "sop",
+    "processed": false,
+    "added_by": "user@example.com",
+    "date_added": "2026-02-09T11:00:00Z"
   }
 ]
 ```
+
+The source `type` field can be: `sop`, `notes`, `transcript`, `policy`, `data`, or other custom types.
+The `processed` flag indicates whether this file has been analyzed by the Knowledge Processor agent.
 
 ## Complete Example
 
@@ -229,17 +235,127 @@ Each deliverable has this structure:
         }
       }
     },
-    "digitization": { "status": "locked", "description": "Design digital solution", "gate_criteria": {}, "deliverables": {} },
-    "automation": { "status": "locked", "description": "Build and deploy automation", "gate_criteria": {}, "deliverables": {} },
-    "autonomization": { "status": "locked", "description": "Full autonomous operation", "gate_criteria": {}, "deliverables": {} }
-  },
-  "team_roster": {
-    "owner": {
-      "name": "John Doe",
-      "email": "john@example.com",
-      "role": "Project Owner"
+    "digitization": {
+      "status": "locked",
+      "description": "Ensure systems, data, and access are ready for automation",
+      "gate_criteria": {
+        "required_deliverables": ["system_integration_map", "data_model", "access_security_plan"],
+        "minimum_completeness": 80,
+        "sign_off_required": true
+      },
+      "deliverables": {
+        "system_integration_map": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/3_digitization/system_integration_map.json",
+          "gaps": []
+        },
+        "data_model": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/3_digitization/data_model.json",
+          "gaps": []
+        },
+        "access_security_plan": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/3_digitization/access_security_plan.json",
+          "gaps": []
+        }
+      }
     },
-    "stakeholders": []
+    "automation": {
+      "status": "locked",
+      "description": "Build, test, and deploy the automated solution",
+      "gate_criteria": {
+        "required_deliverables": ["automation_spec", "test_plan", "runbook", "deployment_checklist"],
+        "minimum_completeness": 80,
+        "sign_off_required": true
+      },
+      "deliverables": {
+        "automation_spec": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/4_automation/automation_spec.json",
+          "gaps": []
+        },
+        "test_plan": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/4_automation/test_plan.json",
+          "gaps": []
+        },
+        "runbook": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/4_automation/runbook.json",
+          "gaps": []
+        },
+        "deployment_checklist": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/4_automation/deployment_checklist.json",
+          "gaps": []
+        }
+      }
+    },
+    "autonomization": {
+      "status": "locked",
+      "description": "Establish rules for autonomous operation with human oversight",
+      "gate_criteria": {
+        "required_deliverables": ["decision_rules", "monitoring_dashboard_spec", "learning_loop_design"],
+        "minimum_completeness": 90,
+        "sign_off_required": true
+      },
+      "deliverables": {
+        "decision_rules": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/5_autonomization/decision_rules.json",
+          "gaps": []
+        },
+        "monitoring_dashboard_spec": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/5_autonomization/monitoring_dashboard_spec.json",
+          "gaps": []
+        },
+        "learning_loop_design": {
+          "status": "not_started",
+          "completeness": 0,
+          "last_updated": null,
+          "file": "deliverables/5_autonomization/learning_loop_design.json",
+          "gaps": []
+        }
+      }
+    }
+  },
+  "team": {
+    "process_owner": {
+      "name": "John Doe",
+      "email": "john@example.com"
+    },
+    "business_analyst": {
+      "name": "TBD",
+      "email": ""
+    },
+    "sme": {
+      "name": "TBD",
+      "email": ""
+    },
+    "developer": {
+      "name": "TBD",
+      "email": ""
+    }
   },
   "gate_reviews": {
     "standardization_gate": {
@@ -252,14 +368,11 @@ Each deliverable has this structure:
   },
   "knowledge_sources": [
     {
-      "source_id": "550e8400-e29b-41d4-a716-446655440000",
-      "filename": "vendor_policy.pdf",
-      "file_type": "pdf",
-      "uploaded_date": "2026-02-09T11:00:00",
-      "uploaded_by": "john@example.com",
-      "extraction_status": "complete",
-      "extracted_folder": "knowledge/extracted/550e8400-e29b-41d4-a716-446655440000/",
-      "notes": "Current vendor onboarding policy document"
+      "file": "knowledge/uploaded/vendor_policy.pdf",
+      "type": "sop",
+      "processed": false,
+      "added_by": "john@example.com",
+      "date_added": "2026-02-09T11:00:00Z"
     }
   ]
 }
@@ -300,10 +413,9 @@ pm.update_deliverable_status(
 ```python
 pm.add_knowledge_source(
     project_id='test-project',
-    filename='policy.pdf',
-    file_type='pdf',
-    uploaded_by='user@example.com',
-    notes='Company policy document'
+    file_path='knowledge/uploaded/policy.pdf',
+    source_type='sop',
+    added_by='user@example.com'
 )
 ```
 

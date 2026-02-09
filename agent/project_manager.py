@@ -438,6 +438,11 @@ class ProjectManager:
                 "standardization": {
                     "status": "locked",
                     "description": "Document the AS-IS process",
+                    "gate_criteria": {
+                        "required_deliverables": ["sipoc", "process_map", "baseline_metrics", "exception_register", "flowchart"],
+                        "minimum_completeness": 80,
+                        "sign_off_required": False
+                    },
                     "deliverables": {
                         "sipoc": {
                             "status": "not_started",
@@ -479,41 +484,137 @@ class ProjectManager:
                 "optimization": {
                     "status": "locked",
                     "description": "Design the TO-BE process and improvements",
+                    "gate_criteria": {
+                        "required_deliverables": ["waste_analysis", "to_be_process", "improvement_register"],
+                        "minimum_completeness": 80,
+                        "sign_off_required": False
+                    },
                     "deliverables": {
                         "waste_analysis": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
+                            "file": "deliverables/2_optimization/waste_analysis.json",
                             "gaps": []
                         },
                         "to_be_process": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
+                            "file": "deliverables/2_optimization/to_be_process.json",
                             "gaps": []
                         },
                         "improvement_register": {
                             "status": "not_started",
                             "completeness": 0,
                             "last_updated": None,
+                            "file": "deliverables/2_optimization/improvement_register.json",
                             "gaps": []
                         }
                     }
                 },
                 "digitization": {
                     "status": "locked",
-                    "description": "Prepare systems for automation",
-                    "deliverables": {}
+                    "description": "Ensure systems, data, and access are ready for automation",
+                    "gate_criteria": {
+                        "required_deliverables": ["system_integration_map", "data_model", "access_security_plan"],
+                        "minimum_completeness": 80,
+                        "sign_off_required": True
+                    },
+                    "deliverables": {
+                        "system_integration_map": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/3_digitization/system_integration_map.json",
+                            "gaps": []
+                        },
+                        "data_model": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/3_digitization/data_model.json",
+                            "gaps": []
+                        },
+                        "access_security_plan": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/3_digitization/access_security_plan.json",
+                            "gaps": []
+                        }
+                    }
                 },
                 "automation": {
                     "status": "locked",
-                    "description": "Build and deploy automation",
-                    "deliverables": {}
+                    "description": "Build, test, and deploy the automated solution",
+                    "gate_criteria": {
+                        "required_deliverables": ["automation_spec", "test_plan", "runbook", "deployment_checklist"],
+                        "minimum_completeness": 80,
+                        "sign_off_required": True
+                    },
+                    "deliverables": {
+                        "automation_spec": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/4_automation/automation_spec.json",
+                            "gaps": []
+                        },
+                        "test_plan": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/4_automation/test_plan.json",
+                            "gaps": []
+                        },
+                        "runbook": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/4_automation/runbook.json",
+                            "gaps": []
+                        },
+                        "deployment_checklist": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/4_automation/deployment_checklist.json",
+                            "gaps": []
+                        }
+                    }
                 },
                 "autonomization": {
                     "status": "locked",
-                    "description": "Set rules for autonomous operation",
-                    "deliverables": {}
+                    "description": "Establish rules for autonomous operation with human oversight",
+                    "gate_criteria": {
+                        "required_deliverables": ["decision_rules", "monitoring_dashboard_spec", "learning_loop_design"],
+                        "minimum_completeness": 90,
+                        "sign_off_required": True
+                    },
+                    "deliverables": {
+                        "decision_rules": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/5_autonomization/decision_rules.json",
+                            "gaps": []
+                        },
+                        "monitoring_dashboard_spec": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/5_autonomization/monitoring_dashboard_spec.json",
+                            "gaps": []
+                        },
+                        "learning_loop_design": {
+                            "status": "not_started",
+                            "completeness": 0,
+                            "last_updated": None,
+                            "file": "deliverables/5_autonomization/learning_loop_design.json",
+                            "gaps": []
+                        }
+                    }
                 }
             },
             "team": {
