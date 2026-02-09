@@ -362,10 +362,24 @@ Build this incrementally. Each stage adds capability on top of the last.
 - [ ] TO-BE process design conversation
 - [ ] Gate Review for Optimization
 
+<<<<<<< HEAD
 ### Stage 6+: Digitization, Automation, Autonomization
 - [ ] Each built on the same foundation
 - [ ] Increasingly technical agents for later phases
 
+=======
+### Stage 6: Digitization, Automation, Autonomization Phases
+- [ ] Each built on the same foundation
+- [ ] Increasingly technical agents for later phases
+
+### Stage 7: Teams Integration
+- [ ] Azure Bot Service setup
+- [ ] Connect agent core to Teams bot
+- [ ] File attachment handling
+- [ ] Project channels with SharePoint knowledge folders
+- [ ] Proactive notifications
+
+>>>>>>> 6425ce1 (updated system architecture to include teams)
 ---
 
 ## 7. Technology Decisions
@@ -373,6 +387,7 @@ Build this incrementally. Each stage adds capability on top of the last.
 | Component | Current | Recommended |
 |---|---|---|
 | AI Provider | OpenAI (GPT-4o) | Keep — works well, consider adding Claude as option |
+<<<<<<< HEAD
 | Conversation Interface | Terminal (CLI) | Start with CLI, later add web UI |
 | File Storage | Local filesystem | Local for now, later S3 or SharePoint |
 | Project State | JSON files | JSON for now, later database |
@@ -382,6 +397,117 @@ Build this incrementally. Each stage adds capability on top of the last.
 ---
 
 ## 8. What Changes From Current Code
+=======
+| Conversation Interface | Terminal (CLI) | CLI now → Microsoft Teams (end goal) |
+| File Storage | Local filesystem | Local for now, later SharePoint |
+| Project State | JSON files | JSON for now, later database |
+| Document Generation | python-docx + mmdc | Keep — working well |
+| File Processing | Manual | Add: PyPDF2, Pillow, python-docx for reading, OpenAI Vision for images |
+| Bot Framework | N/A | Microsoft Bot Framework + Azure Bot Service (for Teams) |
+
+---
+
+## 8. Interface Layer & Microsoft Teams Roadmap
+
+### 8.1 End Goal
+
+The agent lives in **Microsoft Teams** as a colleague people can chat with. No new tools, no terminal — just a Teams conversation. People can message the agent, drop files into the chat, and collaborate across roles in group channels.
+
+### 8.2 Architecture: Separation of Brain and Interface
+
+The agent core must be **completely interface-agnostic**. It receives a message and a user identity, processes it, returns a response. The interface (CLI, web, Teams) is a thin layer on top.
+
+```
+┌──────────────────────────────────────────────┐
+│              INTERFACE LAYER                  │
+│                                              │
+│  ┌─────────┐  ┌─────────┐  ┌─────────────┐  │
+│  │   CLI   │  │ Web UI  │  │ MS Teams Bot│  │
+│  │(current)│  │(future) │  │ (end goal)  │  │
+│  └────┬────┘  └────┬────┘  └──────┬──────┘  │
+│       └────────────┼──────────────┘          │
+│                    ▼                         │
+│          ┌──────────────────┐                │
+│          │   Agent API      │                │
+│          │   (message in,   │                │
+│          │    response out) │                │
+│          └────────┬─────────┘                │
+└───────────────────┼──────────────────────────┘
+                    ▼
+┌──────────────────────────────────────────────┐
+│              AGENT CORE                      │
+│  Orchestrator → Knowledge Processor →        │
+│  Gap Analyzer → Conversation Agent →         │
+│  Document Generator → Gate Review            │
+└──────────────────────────────────────────────┘
+                    ▼
+┌──────────────────────────────────────────────┐
+│         PROJECT KNOWLEDGE STORE              │
+│  projects/<name>/knowledge, deliverables...  │
+└──────────────────────────────────────────────┘
+```
+
+### 8.3 What Teams Gives Us
+
+| Capability | Benefit |
+|---|---|
+| **User identity** | Agent automatically knows who's talking (PO, BA, SME, DEV) — no need to ask for role. Can look up from project team roster. |
+| **Asynchronous conversation** | People message throughout the day, days apart. Agent handles fragmented conversations by always re-reading project state before responding. |
+| **File sharing** | Users drop PDFs, photos, Excel files directly into chat. Agent processes them into the knowledge folder. |
+| **Group channels** | A project can have a dedicated Teams channel. Multiple roles collaborate with the agent in one place. |
+| **SharePoint integration** | Teams channels have a built-in SharePoint folder. The knowledge folder could live there natively. |
+| **Notifications** | Agent can proactively notify: "SIPOC is complete, I still need baseline metrics. Can the SME help?" |
+| **Familiarity** | No training needed — people already use Teams every day. |
+
+### 8.4 What Teams Requires
+
+| Requirement | Details |
+|---|---|
+| **Microsoft Bot Framework** | SDK for building Teams bots. Python SDK available (`botbuilder-python`). |
+| **Azure Bot Service** | Hosts the bot and handles Teams channel registration. |
+| **Azure App Service** | Runs the agent as a web service (the API layer). |
+| **App Registration** | Azure AD app registration for authentication. |
+| **Admin Approval** | IT/admin must approve the bot for deployment in the Teams tenant. |
+| **Microsoft Graph API** | For reading SharePoint files, user profiles, team membership. |
+
+### 8.5 Design Rules (Apply Now)
+
+To ensure a smooth transition to Teams later, follow these rules during all development stages:
+
+1. **No CLI-specific logic in the agent core.** Input/output handling must be separate from reasoning and knowledge processing.
+2. **Every agent function takes `(message: str, user_id: str, project_id: str)` and returns a response string.** This is the API contract — works for CLI, web, and Teams.
+3. **File processing accepts file paths or byte streams.** Teams will send files as downloads; the agent shouldn't assume files are already on disk.
+4. **No blocking input() calls in the core.** The CLI can use `input()`, but the core agent must be callable as a function, not an interactive loop.
+5. **User identity drives role lookup.** The core accepts a `user_id` and looks up their role from `project.json`, not from the conversation.
+
+### 8.6 Teams Implementation Stages
+
+This is later-stage work, but documenting the path now:
+
+**Stage T1: Bot Skeleton**
+- Register Azure Bot Service
+- Create basic Teams bot that echoes messages
+- Deploy to Azure App Service
+
+**Stage T2: Connect Agent Core**
+- Wire the Teams bot to the Agent API
+- Map Teams user IDs to project roles
+- Handle file attachments (download → knowledge folder)
+
+**Stage T3: Project Channels**
+- Each project gets a Teams channel
+- Channel's SharePoint folder = knowledge folder
+- Agent responds in-channel with awareness of project context
+
+**Stage T4: Proactive Engagement**
+- Agent notifies the right person when it needs input
+- Agent posts summaries when deliverables are completed
+- Agent announces gate review results
+
+---
+
+## 9. What Changes From Current Code
+>>>>>>> 6425ce1 (updated system architecture to include teams)
 
 | Current | Future |
 |---|---|
@@ -392,3 +518,8 @@ Build this incrementally. Each stage adds capability on top of the last.
 | No file upload processing | Reads PDFs, images, docs, meeting notes |
 | Session JSON = raw conversation | Structured knowledge base + conversation logs |
 | Status tracked in conversation | Status tracked in `project.json` |
+<<<<<<< HEAD
+=======
+| CLI-only interface | Interface-agnostic core, CLI now, Teams later |
+| Interactive input() loop | Callable API: message in, response out |
+>>>>>>> 6425ce1 (updated system architecture to include teams)
