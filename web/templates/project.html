@@ -54,14 +54,14 @@
     <h2>📊 Phase Progress</h2>
     <div class="phase-timeline">
         {% for phase in project.phases %}
-        <div class="phase-item {% if loop.index == project.current_phase %}active{% elif loop.index < project.current_phase %}completed{% endif %}">
+        <div class="phase-item {% if loop.index == project.current_phase|int %}active{% elif loop.index < project.current_phase|int %}completed{% endif %}">
             <div class="phase-number">{{ loop.index }}</div>
             <div class="phase-info">
                 <div class="phase-name">{{ phase.name }}</div>
                 <div class="phase-status">
-                    {% if loop.index < project.current_phase %}
+                    {% if loop.index < project.current_phase|int %}
                     <span class="status-badge status-completed">✓ Completed</span>
-                    {% elif loop.index == project.current_phase %}
+                    {% elif loop.index == project.current_phase|int %}
                     <span class="status-badge status-active">→ In Progress</span>
                     {% else %}
                     <span class="status-badge status-locked">🔒 Locked</span>
@@ -121,7 +121,7 @@
 <!-- Current Phase Deliverables -->
 <div class="section">
     <h2>📄 Current Phase Deliverables</h2>
-    {% set current_phase = project.phases[project.current_phase - 1] %}
+    {% set current_phase = project.phases[project.current_phase|int - 1] %}
     <div class="deliverables-list">
         {% for deliverable in current_phase.deliverables %}
         <div class="deliverable-item">

@@ -25,7 +25,7 @@
             <div class="meta-item">
                 <span class="label">Current Phase:</span>
                 <span class="value phase-badge phase-{{ project.current_phase }}">
-                    Phase {{ project.current_phase }}: {{ project.phases[project.current_phase - 1].name }}
+                    Phase {{ project.current_phase }}: {{ project.phases[project.current_phase|int - 1].name }}
                 </span>
             </div>
             <div class="meta-item">
