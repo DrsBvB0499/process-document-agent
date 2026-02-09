@@ -433,6 +433,78 @@ Check project status:
 python cli.py status test-project
 ```
 
+## Knowledge Extraction Schemas
+
+The Knowledge Processor agent creates two structured files in `knowledge/extracted/`:
+
+### knowledge_base.json
+
+The single consolidated view of all knowledge learned from uploaded files.
+
+```json
+{
+  "facts": [
+    {
+      "category": "suppliers|customers|process_steps|systems|metrics|constraints",
+      "fact": "string describing a single fact",
+      "confidence": 0.85,
+      "source_file": "filename.pdf"
+    }
+  ],
+  "sources": [
+    {
+      "system": "SAP|SharePoint|Email|Slack|etc",
+      "description": "Brief description of system role"
+    }
+  ],
+  "exceptions": [
+    "Known process exceptions or edge cases"
+  ],
+  "unknowns": [
+    "Questions raised but not answered"
+  ],
+  "last_updated": "ISO8601 timestamp"
+}
+```
+
+**Usage:** The Gap Analyzer and Conversation Agent read this to understand what's known vs. what gaps remain.
+
+### analysis_log.json
+
+Detailed log of each file processed and what was extracted from it.
+
+```json
+[
+  {
+    "timestamp": "2026-02-09T11:30:00Z",
+    "source_file": "current_sop.pdf",
+    "file_type": ".pdf",
+    "file_size_bytes": 245678,
+    "status": "success|error",
+    "model": "gpt-3.5-turbo-16k",
+    "input_tokens": 2500,
+    "output_tokens": 1200,
+    "cost_usd": 0.0045,
+    "extraction": {
+      "facts": [
+        { "category": "process_steps", "fact": "Invoice approval requires 2 signatures", "confidence": 0.92 }
+      ],
+      "sources": [
+        { "system": "SAP", "description": "Invoice posting module" }
+      ],
+      "exceptions": [
+        "Invoices over $50k require CFO approval"
+      ],
+      "unknowns": [
+        "Current error rate for duplicates?"
+      ]
+    }
+  }
+]
+```
+
+**Usage:** Enables debugging of extraction quality, cost per file, and historical audit trail.
+
 ## Notes
 
 - **Timestamps** are always in ISO 8601 format (e.g., "2026-02-09T10:24:52.054080")
@@ -442,3 +514,5 @@ python cli.py status test-project
 - **project_id** is automatically slugified from project_name (spaces → hyphens, lowercase)
 - Gates are locked until the previous phase reaches required completeness threshold
 - All deliverable files should be created in their designated directories under deliverables/
+- **Facts** are deduplicated by (category, fact) to avoid repeating the same information
+- **Sources** are deduplicated by system name to maintain a clean list of systems in use

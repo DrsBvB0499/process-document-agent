@@ -1,0 +1,363 @@
+"""Knowledge Processor Agent — reads and extracts knowledge from uploaded files.
+
+This agent:
+1. Scans projects/<project_id>/knowledge/uploaded/ for new files
+2. Reads each file (PDF, DOCX, TXT, images, etc.)
+3. Uses the LLM to extract structured information
+4. Consolidates findings into knowledge_base.json
+5. Logs analysis per source in analysis_log.json
+
+The agent is knowledge-first: it learns everything available before
+any conversation happens, giving subsequent agents a complete picture
+of what's already known.
+
+Usage:
+    from agent.knowledge_processor import KnowledgeProcessor
+    
+    kp = KnowledgeProcessor()
+    project = kp.process_project("sd-light-invoicing")
+    knowledge_base = project.get("knowledge_base", {})
+    
+    print(f"Extracted {len(knowledge_base.get('facts', []))} facts")
+    print(f"Analyzed {len(knowledge_base.get('sources', []))} sources")
+"""
+
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+import mimetypes
+
+from agent.llm import call_model
+
+
+class KnowledgeProcessor:
+    """Scans, reads, and extracts knowledge from uploaded project files."""
+
+    def __init__(self, projects_root: Optional[Path] = None):
+        """Initialize the Knowledge Processor.
+        
+        Args:
+            projects_root: Root directory for projects. 
+                          Defaults to ./projects/
+        """
+        self.projects_root = Path(projects_root or (Path(__file__).parent.parent / "projects"))
+
+    def process_project(self, project_id: str) -> Dict[str, Any]:
+        """Process all uploaded files for a project.
+        
+        Scans knowledge/uploaded/, reads each file, extracts structured
+        information, and updates knowledge_base.json and analysis_log.json.
+        
+        Args:
+            project_id: The project ID to process
+        
+        Returns:
+            Dictionary with keys: knowledge_base, analysis_log, status
+        """
+        project_path = self.projects_root / project_id
+        uploaded_path = project_path / "knowledge" / "uploaded"
+        extracted_path = project_path / "knowledge" / "extracted"
+
+        if not uploaded_path.exists():
+            return {
+                "knowledge_base": {},
+                "analysis_log": [],
+                "status": "no_uploaded_files",
+            }
+
+        extracted_path.mkdir(parents=True, exist_ok=True)
+
+        # Load existing knowledge base and analysis log
+        knowledge_base = self._load_knowledge_base(extracted_path)
+        analysis_log = self._load_analysis_log(extracted_path)
+
+        # Find files that haven't been processed
+        processed_files = {entry.get("source_file") for entry in analysis_log}
+        files_to_process = [
+            f
+            for f in uploaded_path.iterdir()
+            if f.is_file() and f.name not in processed_files
+        ]
+
+        # Process each new file
+        for file_path in files_to_process:
+            try:
+                analysis = self._process_file(
+                    project_id, file_path, uploaded_path
+                )
+                if analysis:
+                    analysis_log.append(analysis)
+                    # Merge extracted facts and sources
+                    if "facts" in analysis.get("extraction", {}):
+                        knowledge_base.setdefault("facts", []).extend(
+                            analysis["extraction"]["facts"]
+                        )
+                    if "sources" in analysis.get("extraction", {}):
+                        knowledge_base.setdefault("sources", []).extend(
+                            analysis["extraction"]["sources"]
+                        )
+            except Exception as e:
+                # Log error but continue processing
+                analysis_log.append({
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "source_file": file_path.name,
+                    "file_type": file_path.suffix,
+                    "status": "error",
+                    "error": str(e),
+                    "extraction": {},
+                })
+
+        # Deduplicate facts and sources
+        knowledge_base["facts"] = self._deduplicate_facts(
+            knowledge_base.get("facts", [])
+        )
+        knowledge_base["sources"] = self._deduplicate_sources(
+            knowledge_base.get("sources", [])
+        )
+        knowledge_base["last_updated"] = datetime.utcnow().isoformat() + "Z"
+
+        # Save updated files
+        self._save_knowledge_base(extracted_path, knowledge_base)
+        self._save_analysis_log(extracted_path, analysis_log)
+
+        return {
+            "knowledge_base": knowledge_base,
+            "analysis_log": analysis_log,
+            "status": "success",
+            "files_processed": len(files_to_process),
+        }
+
+    def _process_file(
+        self, project_id: str, file_path: Path, uploaded_path: Path
+    ) -> Optional[Dict[str, Any]]:
+        """Process a single uploaded file.
+        
+        Reads the file, calls the LLM to extract information,
+        and returns an analysis entry.
+        """
+        # Read file content
+        file_content = self._read_file(file_path)
+        if not file_content:
+            return None
+
+        # Determine file type
+        file_type = file_path.suffix.lower()
+        if not file_type:
+            file_type = mimetypes.guess_extension(file_path.name) or "unknown"
+
+        # Build extraction prompt
+        prompt = self._build_extraction_prompt(file_path.name, file_content, file_type)
+
+        # Call LLM to extract information
+        result = call_model(
+            project_id=project_id,
+            agent="knowledge_processor",
+            prompt=prompt,
+        )
+
+        # Parse extracted information
+        text = result.get("text", "")
+        extraction = self._parse_extraction(text)
+
+        return {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "source_file": file_path.name,
+            "file_type": file_type,
+            "file_size_bytes": file_path.stat().st_size,
+            "status": "success",
+            "model": result.get("model"),
+            "input_tokens": result.get("input_tokens", 0),
+            "output_tokens": result.get("output_tokens", 0),
+            "cost_usd": result.get("cost_usd", 0.0),
+            "extraction": extraction,
+        }
+
+    def _read_file(self, file_path: Path) -> Optional[str]:
+        """Read file content based on type."""
+        try:
+            suffix = file_path.suffix.lower()
+
+            # Plain text files
+            if suffix in {".txt", ".md", ".log"}:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    return f.read()
+
+            # JSON files
+            elif suffix == ".json":
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return json.dumps(data, indent=2)
+
+            # CSV (simple read as text)
+            elif suffix == ".csv":
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    return f.read()
+
+            # DOCX (basic extraction)
+            elif suffix in {".docx", ".doc"}:
+                try:
+                    from docx import Document
+                    doc = Document(file_path)
+                    return "\n".join([para.text for para in doc.paragraphs])
+                except Exception:
+                    return None
+
+            # PDF (basic text extraction)
+            elif suffix == ".pdf":
+                try:
+                    import PyPDF2
+                    with open(file_path, "rb") as f:
+                        reader = PyPDF2.PdfReader(f)
+                        text = ""
+                        for page in reader.pages:
+                            text += page.extract_text()
+                        return text
+                except Exception:
+                    return None
+
+            # Images (OCR if available, otherwise skip)
+            elif suffix in {".png", ".jpg", ".jpeg", ".gif", ".bmp"}:
+                try:
+                    from PIL import Image
+                    import pytesseract
+                    img = Image.open(file_path)
+                    return pytesseract.image_to_string(img)
+                except Exception:
+                    # OCR not available; return placeholder
+                    return f"[Image file: {file_path.name}]"
+
+            else:
+                # Unknown file type; try as text
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    return f.read()
+
+        except Exception:
+            return None
+
+    def _build_extraction_prompt(
+        self, filename: str, content: str, file_type: str
+    ) -> str:
+        """Build a prompt for the LLM to extract structured information."""
+        truncated_content = content[:4000]  # Limit to avoid token explosion
+
+        return f"""Analyze the following file and extract structured information.
+
+File: {filename}
+Type: {file_type}
+
+Content:
+{truncated_content}
+
+{"..." if len(content) > 4000 else ""}
+
+Extract and return ONLY a valid JSON object (no markdown, no code block) with this exact schema:
+{{
+  "facts": [
+    {{"category": "string", "fact": "string", "confidence": 0.8}}
+  ],
+  "sources": [
+    {{"system": "string", "description": "string"}}
+  ],
+  "exceptions": ["string"],
+  "unknowns": ["string"]
+}}
+
+Return only the JSON object. Categories: suppliers, customers, process_steps, systems, metrics, constraints.
+"""
+
+    def _parse_extraction(self, text: str) -> Dict[str, Any]:
+        """Parse the LLM response as JSON extraction."""
+        try:
+            # Try to extract JSON from the response
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start >= 0 and end > start:
+                json_str = text[start:end]
+                return json.loads(json_str)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Fallback: return empty extraction
+        return {
+            "facts": [],
+            "sources": [],
+            "exceptions": [],
+            "unknowns": [],
+        }
+
+    def _deduplicate_facts(self, facts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Remove duplicate facts based on category + fact text."""
+        seen = set()
+        unique = []
+        for fact in facts:
+            key = (fact.get("category"), fact.get("fact"))
+            if key not in seen:
+                seen.add(key)
+                unique.append(fact)
+        return unique
+
+    def _deduplicate_sources(
+        self, sources: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """Remove duplicate sources based on system name."""
+        seen = set()
+        unique = []
+        for source in sources:
+            system = source.get("system")
+            if system not in seen:
+                seen.add(system)
+                unique.append(source)
+        return unique
+
+    def _load_knowledge_base(self, extracted_path: Path) -> Dict[str, Any]:
+        """Load existing knowledge_base.json or return empty."""
+        kb_path = extracted_path / "knowledge_base.json"
+        if kb_path.exists():
+            try:
+                with open(kb_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {"facts": [], "sources": [], "exceptions": [], "unknowns": []}
+
+    def _load_analysis_log(self, extracted_path: Path) -> List[Dict[str, Any]]:
+        """Load existing analysis_log.json or return empty."""
+        log_path = extracted_path / "analysis_log.json"
+        if log_path.exists():
+            try:
+                with open(log_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return []
+
+    def _save_knowledge_base(
+        self, extracted_path: Path, knowledge_base: Dict[str, Any]
+    ) -> None:
+        """Save knowledge_base.json."""
+        kb_path = extracted_path / "knowledge_base.json"
+        with open(kb_path, "w", encoding="utf-8") as f:
+            json.dump(knowledge_base, f, indent=2, ensure_ascii=False)
+
+    def _save_analysis_log(
+        self, extracted_path: Path, analysis_log: List[Dict[str, Any]]
+    ) -> None:
+        """Save analysis_log.json."""
+        log_path = extracted_path / "analysis_log.json"
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(analysis_log, f, indent=2, ensure_ascii=False)
+
+
+if __name__ == "__main__":
+    # Quick test: process a project
+    kp = KnowledgeProcessor()
+    try:
+        result = kp.process_project("test-project")
+        print(f"Status: {result['status']}")
+        print(f"Files processed: {result.get('files_processed', 0)}")
+        print(f"Facts extracted: {len(result['knowledge_base'].get('facts', []))}")
+        print(f"Sources identified: {len(result['knowledge_base'].get('sources', []))}")
+    except Exception as e:
+        print(f"Error: {e}")
