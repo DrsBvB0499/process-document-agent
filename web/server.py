@@ -122,11 +122,23 @@ def chat_interface(project_id: str):
             except Exception:
                 pass
 
+        # Get knowledge base facts count
+        kb_path = pm.config.projects_root / project_id / "knowledge" / "extracted" / "knowledge_base.json"
+        kb_facts = 0
+        if kb_path.exists():
+            try:
+                with open(kb_path, 'r', encoding='utf-8') as f:
+                    kb = json.load(f)
+                    kb_facts = len(kb.get('facts', []))
+            except Exception:
+                pass
+
         return render_template(
             'chat.html',
             project=project,
             project_id=project_id,
-            messages=messages
+            messages=messages,
+            kb_facts=kb_facts
         )
     except Exception as e:
         return render_template('error.html', message=str(e)), 500

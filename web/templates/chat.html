@@ -13,6 +13,13 @@
     </div>
 </div>
 
+{% if kb_facts == 0 %}
+<div class="alert alert-warning">
+    ⚠️ <strong>No knowledge base found!</strong> The agent cannot answer questions about your documents until you process them.
+    <a href="/project/{{ project_id }}" style="text-decoration: underline;">Go to Dashboard</a> and click "Process Files" first.
+</div>
+{% endif %}
+
 <div class="chat-container">
     <!-- User Role Selector -->
     <div class="chat-sidebar">

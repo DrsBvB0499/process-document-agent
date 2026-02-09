@@ -17,6 +17,13 @@
     </div>
 </div>
 
+<!-- Warning if no knowledge base exists -->
+{% if uploaded_files > 0 and kb_facts == 0 %}
+<div class="alert alert-warning">
+    ⚠️ <strong>Files uploaded but not processed!</strong> Click "Process Files" below to extract information before chatting with the agent.
+</div>
+{% endif %}
+
 <!-- Status Cards -->
 <div class="stats-grid">
     <div class="stat-card">
