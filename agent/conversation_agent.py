@@ -103,11 +103,28 @@ class ConversationAgent:
         if not validate_user_role(user_role):
             return f"Error: Invalid user role '{user_role}'. Valid roles are: process_owner, business_analyst, sme, developer."
 
-        # Get gap brief
+        # REAL-TIME LEARNING: Process user's message BEFORE generating response
+        # This ensures the next question is based on updated knowledge
+        if message.strip() != "__START__":
+            # Step 1: Extract structured facts from user's answer
+            extracted_facts = self._extract_facts_from_message(
+                message=message,
+                project_id=project_id
+            )
+
+            # Step 2: Append new facts to knowledge base
+            if extracted_facts:
+                self._update_knowledge_base(
+                    project_id=project_id,
+                    new_facts=extracted_facts
+                )
+
+        # Step 3: Get FRESH gap brief (now includes any newly extracted facts)
         gap_brief = self.gap_analyzer.analyze_project(project_id)
         if gap_brief.get("status") != "success":
             return "Error loading project gaps. Please ensure the project exists and has a knowledge base."
 
+        # Step 4: Generate response based on UPDATED gaps
         # Check if this is an initial greeting request
         if message.strip() == "__START__":
             response = self._generate_initial_greeting(
@@ -117,7 +134,7 @@ class ConversationAgent:
                 project_id=project_id,
             )
         else:
-            # Normal conversation flow
+            # Normal conversation flow with fresh gap analysis
             response = self._generate_response(
                 message=message,
                 user_role=user_role,
@@ -125,8 +142,7 @@ class ConversationAgent:
                 project_id=project_id,
             )
 
-        # Append learnings to knowledge base (simplified: user message itself is logged)
-        # Skip logging for __START__ messages
+        # Step 5: Log conversation turn
         if message.strip() != "__START__":
             self._log_conversation(
                 project_id=project_id,
@@ -442,7 +458,141 @@ Now respond to the user's message following these rules. REMEMBER: Read the full
                 json.dump(session_data, f, indent=2, ensure_ascii=False)
         except Exception:
             pass  # Silently fail on logging errors
-        
+
+    def _extract_facts_from_message(
+        self,
+        message: str,
+        project_id: str
+    ) -> list:
+        """Extract structured facts from user's message using LLM.
+
+        This enables real-time learning during conversations.
+
+        Args:
+            message: The user's message text
+            project_id: The project ID (for cost logging)
+
+        Returns:
+            List of extracted facts with category, fact, and confidence
+        """
+        # Build extraction prompt
+        extraction_prompt = f"""Extract structured facts from this user message about a business process.
+
+USER MESSAGE:
+"{message}"
+
+INSTRUCTIONS:
+1. Identify any factual information about the process
+2. Categorize each fact appropriately
+3. Only extract clear, specific information (not vague statements)
+4. If the message is just a question or complaint, return an empty list
+
+CATEGORIES:
+- process_owner: Who owns/manages the process
+- suppliers: Who provides inputs/information
+- inputs: What information/materials are needed
+- outputs: What is produced/delivered
+- customers: Who receives the outputs
+- process_steps: Individual steps in the process
+- teams: Teams involved and their roles
+- systems: Software/tools used
+- metrics: Numbers, measurements, KPIs
+- decisions: Decision points or rules
+- constraints: Limitations or requirements
+- exceptions: Error scenarios or edge cases
+
+OUTPUT FORMAT (JSON):
+{{
+  "facts": [
+    {{
+      "category": "category_name",
+      "fact": "specific fact statement",
+      "confidence": 0.9
+    }}
+  ]
+}}
+
+If no facts can be extracted, return: {{"facts": []}}
+
+Extract facts from the user message now:"""
+
+        try:
+            # Call LLM to extract facts
+            result = call_model(
+                project_id=project_id,
+                agent="conversation_agent",
+                prompt=extraction_prompt,
+            )
+
+            # Parse JSON response
+            response_text = result.get("text", "").strip()
+
+            # Clean up markdown code blocks if present
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0].strip()
+
+            facts_data = json.loads(response_text)
+            return facts_data.get("facts", [])
+
+        except Exception as e:
+            # If extraction fails, return empty list (don't break the conversation)
+            return []
+
+    def _update_knowledge_base(
+        self,
+        project_id: str,
+        new_facts: list
+    ) -> None:
+        """Append new facts to the knowledge base.
+
+        This updates knowledge_base.json with facts learned from conversation.
+
+        Args:
+            project_id: The project ID
+            new_facts: List of facts to append
+        """
+        if not new_facts:
+            return
+
+        project_path = self.projects_root / project_id
+        kb_path = project_path / "knowledge" / "extracted" / "knowledge_base.json"
+
+        # Load existing knowledge base
+        kb_data = {"facts": [], "sources": [], "exceptions": [], "unknowns": []}
+        if kb_path.exists():
+            try:
+                with open(kb_path, "r", encoding="utf-8") as f:
+                    kb_data = json.load(f)
+            except Exception:
+                pass
+
+        # Append new facts
+        existing_facts = kb_data.get("facts", [])
+        for new_fact in new_facts:
+            # Simple duplicate check (same category + similar text)
+            is_duplicate = False
+            for existing in existing_facts:
+                if (existing.get("category") == new_fact.get("category") and
+                    existing.get("fact", "").lower() == new_fact.get("fact", "").lower()):
+                    is_duplicate = True
+                    break
+
+            if not is_duplicate:
+                existing_facts.append(new_fact)
+
+        kb_data["facts"] = existing_facts
+        kb_data["last_updated"] = datetime.utcnow().isoformat() + "Z"
+
+        # Save updated knowledge base
+        kb_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(kb_path, "w", encoding="utf-8") as f:
+                json.dump(kb_data, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass  # Silently fail on save errors
+
 
     def get_session_history(self, project_id: str, date: Optional[str] = None) -> Dict[str, Any]:
         """Retrieve conversation history for a session.
