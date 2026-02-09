@@ -362,12 +362,6 @@ Build this incrementally. Each stage adds capability on top of the last.
 - [ ] TO-BE process design conversation
 - [ ] Gate Review for Optimization
 
-<<<<<<< HEAD
-### Stage 6+: Digitization, Automation, Autonomization
-- [ ] Each built on the same foundation
-- [ ] Increasingly technical agents for later phases
-
-=======
 ### Stage 6: Digitization, Automation, Autonomization Phases
 - [ ] Each built on the same foundation
 - [ ] Increasingly technical agents for later phases
@@ -379,7 +373,6 @@ Build this incrementally. Each stage adds capability on top of the last.
 - [ ] Project channels with SharePoint knowledge folders
 - [ ] Proactive notifications
 
->>>>>>> 6425ce1 (updated system architecture to include teams)
 ---
 
 ## 7. Technology Decisions
@@ -387,23 +380,105 @@ Build this incrementally. Each stage adds capability on top of the last.
 | Component | Current | Recommended |
 |---|---|---|
 | AI Provider | OpenAI (GPT-4o) | Keep — works well, consider adding Claude as option |
-<<<<<<< HEAD
-| Conversation Interface | Terminal (CLI) | Start with CLI, later add web UI |
-| File Storage | Local filesystem | Local for now, later S3 or SharePoint |
-| Project State | JSON files | JSON for now, later database |
-| Document Generation | python-docx + mmdc | Keep — working well |
-| File Processing | Manual | Add: PyPDF2, Pillow, python-docx for reading, OpenAI Vision for images |
-
----
-
-## 8. What Changes From Current Code
-=======
 | Conversation Interface | Terminal (CLI) | CLI now → Microsoft Teams (end goal) |
 | File Storage | Local filesystem | Local for now, later SharePoint |
 | Project State | JSON files | JSON for now, later database |
 | Document Generation | python-docx + mmdc | Keep — working well |
 | File Processing | Manual | Add: PyPDF2, Pillow, python-docx for reading, OpenAI Vision for images |
 | Bot Framework | N/A | Microsoft Bot Framework + Azure Bot Service (for Teams) |
+
+### 7.1 Model Strategy
+
+Not every agent needs the most expensive model. The system uses a **model map** that assigns the right model to each agent based on task complexity.
+
+```python
+# Model assignments per agent role
+MODEL_MAP = {
+    "knowledge_processor": "gpt-4o-mini",   # Reads & extracts facts — high volume, simple task
+    "gap_analyzer":        "gpt-4o-mini",   # Compares lists — structured, deterministic
+    "conversation_agent":  "gpt-4o",         # Talks to humans — needs nuance, context, empathy
+    "document_generator":  "gpt-4o-mini",   # Structured extraction — follows templates
+    "gate_review_agent":   "gpt-4o",         # Judgment calls — needs reasoning quality
+    "mermaid_generator":   "gpt-4o-mini",   # Code generation — structured output
+}
+```
+
+**Guiding principles:**
+
+| Task Type | Model Tier | Reasoning |
+|---|---|---|
+| Extracting facts from documents | Cheap (mini) | High volume, pattern matching, structured output |
+| Comparing lists / finding gaps | Cheap (mini) | Deterministic logic, structured input and output |
+| Human-facing conversation | Premium (4o) | Needs nuance, follow-up questions, empathy |
+| Generating structured JSON | Cheap (mini) | Template-following, well-defined schemas |
+| Judgment and evaluation | Premium (4o) | Needs reasoning about quality, completeness, risk |
+| Code generation (Mermaid, etc.) | Cheap (mini) | Structured syntax, clear rules |
+
+**Fallback escalation:**
+
+When a cheap model produces low-confidence results, automatically retry with the premium model.
+
+```python
+result = call_model(MODEL_MAP["knowledge_processor"], prompt)
+
+if result.confidence < 0.7 or result.has_parse_errors:
+    result = call_model("gpt-4o", prompt)  # Escalate
+    log_escalation(agent="knowledge_processor", reason="low_confidence")
+```
+
+Confidence signals to watch for:
+- JSON parse failures (model didn't follow the schema)
+- Empty or "Not discussed" for fields that should have data
+- Unusually short responses for complex documents
+- Extraction contradicts known facts in the knowledge base
+
+**Cost tracking and logging:**
+
+Every API call is logged with:
+
+```json
+{
+    "timestamp": "2025-01-20T10:05:00Z",
+    "project_id": "sd-light-invoicing",
+    "agent": "knowledge_processor",
+    "model": "gpt-4o-mini",
+    "phase": "standardization",
+    "deliverable": "sipoc",
+    "input_tokens": 1250,
+    "output_tokens": 800,
+    "cost_usd": 0.0004,
+    "escalated": false,
+    "duration_ms": 1200
+}
+```
+
+This enables:
+- **Cost per project** — how much does it cost to take one process through the roadmap?
+- **Cost per phase** — which phase is most expensive?
+- **Cost per deliverable** — which deliverables are cheapest to generate?
+- **Escalation rate** — how often does the cheap model fail and need premium?
+- **Model comparison** — is gpt-4o-mini good enough for a task, or does it always escalate?
+
+The cost log lives at `projects/<id>/cost_log.json` and can be aggregated across projects for enterprise reporting.
+
+**Configuration in `.env`:**
+
+```env
+# Model assignments (override defaults)
+MODEL_KNOWLEDGE_PROCESSOR=gpt-4o-mini
+MODEL_GAP_ANALYZER=gpt-4o-mini
+MODEL_CONVERSATION_AGENT=gpt-4o
+MODEL_DOCUMENT_GENERATOR=gpt-4o-mini
+MODEL_GATE_REVIEW=gpt-4o
+
+# Fallback threshold
+MODEL_ESCALATION_CONFIDENCE=0.7
+
+# Cost tracking
+COST_TRACKING_ENABLED=true
+```
+
+This gives full flexibility to tune quality vs. spend per deployment, and makes the system viable at enterprise scale.
 
 ---
 
@@ -507,7 +582,6 @@ This is later-stage work, but documenting the path now:
 ---
 
 ## 9. What Changes From Current Code
->>>>>>> 6425ce1 (updated system architecture to include teams)
 
 | Current | Future |
 |---|---|
@@ -518,8 +592,5 @@ This is later-stage work, but documenting the path now:
 | No file upload processing | Reads PDFs, images, docs, meeting notes |
 | Session JSON = raw conversation | Structured knowledge base + conversation logs |
 | Status tracked in conversation | Status tracked in `project.json` |
-<<<<<<< HEAD
-=======
 | CLI-only interface | Interface-agnostic core, CLI now, Teams later |
 | Interactive input() loop | Callable API: message in, response out |
->>>>>>> 6425ce1 (updated system architecture to include teams)
