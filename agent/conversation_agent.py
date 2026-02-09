@@ -167,34 +167,66 @@ class ConversationAgent:
         """Build a prompt that guides the LLM on how to respond."""
         deliverable_gaps = gap_brief.get("deliverable_gaps", [])
 
-        # Summarize which deliverables have gaps
-        gap_summary = "\n".join([
-            f"- {g['deliverable']} ({g['completeness_pct']}%): missing {', '.join(g['missing_fields'][:2])}"
-            for g in deliverable_gaps if g.get("missing_fields")
-        ])
+        # Find the most important gap to focus on (lowest completeness first)
+        focus_gap = None
+        if deliverable_gaps:
+            incomplete_gaps = [g for g in deliverable_gaps if g.get("missing_fields")]
+            if incomplete_gaps:
+                focus_gap = min(incomplete_gaps, key=lambda g: g.get("completeness_pct", 100))
 
         role = role_config.get("vocabulary", "technical")
         depth = role_config.get("depth", "tactical")
 
-        return f"""You are a consultant gathering information for process improvement.
+        # Build context about what's missing
+        if focus_gap:
+            missing_fields = focus_gap.get("missing_fields", [])
+            focus_field = missing_fields[0] if missing_fields else None
+            gap_context = f"""
+CURRENT FOCUS: {focus_gap.get('deliverable')} ({focus_gap.get('completeness_pct')}% complete)
+NEXT ITEM TO GATHER: {focus_field if focus_field else 'general information'}
+STILL MISSING: {', '.join(missing_fields[:3])}
+"""
+        else:
+            gap_context = "All key information appears to be gathered. You're in clarification mode."
 
-USER ROLE: {role} | DEPTH: {depth}
+        return f"""You are a friendly, patient consultant helping to document a business process.
+
+USER'S ROLE: {role.capitalize()} | CONVERSATION STYLE: {depth}
 
 USER'S LAST MESSAGE:
 "{user_message}"
 
-WHAT WE STILL NEED:
-{gap_summary if gap_summary else "All deliverables appear largely complete."}
+WHAT WE'RE WORKING ON:
+{gap_context}
 
-INSTRUCTIONS:
-1. Listen to the user's message and respond conversationally.
-2. If the user is offering information about a gap, acknowledge it and ask a follow-up question.
-3. If the user asks a question, answer it briefly using {role} language.
-4. If you detect new information (metrics, systems, exceptions), summarize it back for confirmation.
-5. Keep responses short (2-3 sentences max).
-6. End by asking what else they'd like to share.
+CRITICAL CONVERSATION RULES:
+1. **ONE QUESTION AT A TIME** - Never ask multiple questions in one response
+2. **EXPLAIN FIRST** - Before asking, explain what you're asking for in simple terms (no jargon like "SIPOC")
+3. **PROVIDE AN EXAMPLE** - Give a concrete example to help the user understand
+4. **EXPLAIN WHY** - Tell them why this information is important for the analysis
+5. **BE ENCOURAGING** - Acknowledge what they've already shared before asking for more
+6. **SIMPLE LANGUAGE** - Avoid technical terms unless the user is a developer
 
-Respond naturally as if you're having a conversation.
+RESPONSE STRUCTURE (follow this exactly):
+- First: Acknowledge their input or answer their question warmly
+- Second: If asking for information, explain what you need in simple terms
+- Third: Provide a concrete example to guide them
+- Fourth: Ask ONE specific question
+- NEVER end with "What else would you like to share?" - be specific!
+
+EXAMPLE GOOD RESPONSE:
+"Great! The information about your approval workflow is really helpful. I can see there are multiple steps involved.
+
+To help map this out clearly, I need to understand who provides the information at the start of this process. By 'providers' I mean anyone who sends you data, documents, or requests that kick off the workflow.
+
+For example, in an invoice process, the suppliers might be: vendors (who send invoices), the purchasing team (who provide purchase orders), or employees (who submit expense reports).
+
+Can you tell me who the main providers of information are for your process?"
+
+EXAMPLE BAD RESPONSE (DON'T DO THIS):
+"Thanks for sharing! We still need details on suppliers, inputs, performers, decisions, and metrics. Could you provide more information on these areas? What else would you like to share?"
+
+Now respond to the user's message following these rules.
 """
 
     def _clean_response(self, text: str) -> str:
