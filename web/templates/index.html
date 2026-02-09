@@ -25,12 +25,12 @@
             <div class="meta-item">
                 <span class="label">Current Phase:</span>
                 <span class="value phase-badge phase-{{ project.current_phase }}">
-                    Phase {{ project.current_phase }}: {{ project.phases[project.current_phase|int - 1].name }}
+                    {{ project.current_phase|title }}
                 </span>
             </div>
             <div class="meta-item">
                 <span class="label">Created:</span>
-                <span class="value">{{ project.created_at.split('T')[0] }}</span>
+                <span class="value">{{ project.created.split('T')[0] }}</span>
             </div>
         </div>
 

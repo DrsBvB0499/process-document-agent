@@ -53,15 +53,15 @@
 <div class="section">
     <h2>📊 Phase Progress</h2>
     <div class="phase-timeline">
-        {% for phase in project.phases %}
-        <div class="phase-item {% if loop.index == project.current_phase|int %}active{% elif loop.index < project.current_phase|int %}completed{% endif %}">
+        {% for phase_name, phase_data in project.phases.items() %}
+        <div class="phase-item {% if phase_name == project.current_phase %}active{% elif phase_data.status == 'complete' %}completed{% endif %}">
             <div class="phase-number">{{ loop.index }}</div>
             <div class="phase-info">
-                <div class="phase-name">{{ phase.name }}</div>
+                <div class="phase-name">{{ phase_name|title }}</div>
                 <div class="phase-status">
-                    {% if loop.index < project.current_phase|int %}
+                    {% if phase_data.status == 'complete' %}
                     <span class="status-badge status-completed">✓ Completed</span>
-                    {% elif loop.index == project.current_phase|int %}
+                    {% elif phase_name == project.current_phase %}
                     <span class="status-badge status-active">→ In Progress</span>
                     {% else %}
                     <span class="status-badge status-locked">🔒 Locked</span>
@@ -121,13 +121,13 @@
 <!-- Current Phase Deliverables -->
 <div class="section">
     <h2>📄 Current Phase Deliverables</h2>
-    {% set current_phase = project.phases[project.current_phase|int - 1] %}
+    {% set current_phase_data = project.phases[project.current_phase] %}
     <div class="deliverables-list">
-        {% for deliverable in current_phase.deliverables %}
+        {% for deliverable_name, deliverable in current_phase_data.deliverables.items() %}
         <div class="deliverable-item">
             <div class="deliverable-icon">{% if deliverable.completed %}✅{% else %}⏳{% endif %}</div>
             <div class="deliverable-info">
-                <div class="deliverable-name">{{ deliverable.name }}</div>
+                <div class="deliverable-name">{{ deliverable_name|replace('_', ' ')|title }}</div>
                 <div class="deliverable-meta">
                     <span class="deliverable-status">{{ 'Completed' if deliverable.completed else 'Pending' }}</span>
                     {% if deliverable.completed_at %}
