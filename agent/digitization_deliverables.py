@@ -9,7 +9,7 @@ Author: Intelligent Automation Agent
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, List, Any
 from datetime import datetime
 
 from agent.system_architecture_generator import SystemArchitectureGenerator
