@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Dict, Any
 
 from flask import Flask, render_template, request, jsonify, send_file, session
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.utils import secure_filename
 
 # Add parent directory to path to import agents
@@ -31,6 +33,15 @@ from agent.gate_review_agent import GateReviewAgent
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-in-production")
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
+
+# Configure rate limiting
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
 
 # Initialize agents
 pm = ProjectManager()
@@ -294,6 +305,7 @@ def api_upload_file(project_id: str):
 
 
 @app.route('/api/projects/<project_id>/process', methods=['POST'])
+@limiter.limit("10 per hour")  # Expensive LLM operation
 def api_process_knowledge(project_id: str):
     """Process uploaded files and extract knowledge."""
     try:
@@ -322,6 +334,7 @@ def api_analyze_gaps(project_id: str):
 
 
 @app.route('/api/projects/<project_id>/chat', methods=['POST'])
+@limiter.limit("30 per minute")  # Prevent chat spam while allowing natural conversation
 def api_send_message(project_id: str):
     """Send a message to the conversation agent."""
     try:
@@ -349,6 +362,7 @@ def api_send_message(project_id: str):
 
 
 @app.route('/api/projects/<project_id>/generate', methods=['POST'])
+@limiter.limit("5 per hour")  # Very expensive: generates 5 deliverables with multiple LLM calls
 def api_generate_deliverables(project_id: str):
     """Generate all standardization deliverables."""
     try:
@@ -363,6 +377,7 @@ def api_generate_deliverables(project_id: str):
 
 
 @app.route('/api/projects/<project_id>/generate-optimization', methods=['POST'])
+@limiter.limit("5 per hour")  # Very expensive: generates 4 optimization deliverables
 def api_generate_optimization_deliverables(project_id: str):
     """Generate all optimization deliverables."""
     try:
@@ -377,6 +392,7 @@ def api_generate_optimization_deliverables(project_id: str):
 
 
 @app.route('/api/projects/<project_id>/generate-digitization', methods=['POST'])
+@limiter.limit("5 per hour")  # Expensive: generates digitization deliverables
 def api_generate_digitization_deliverables(project_id: str):
     """Generate all digitization deliverables."""
     try:
@@ -391,6 +407,7 @@ def api_generate_digitization_deliverables(project_id: str):
 
 
 @app.route('/api/projects/<project_id>/generate-automation', methods=['POST'])
+@limiter.limit("5 per hour")  # Expensive: generates automation deliverables
 def api_generate_automation_deliverables(project_id: str):
     """Generate all automation deliverables."""
     try:
@@ -405,6 +422,7 @@ def api_generate_automation_deliverables(project_id: str):
 
 
 @app.route('/api/projects/<project_id>/generate-autonomization', methods=['POST'])
+@limiter.limit("5 per hour")  # Expensive: generates autonomization deliverables
 def api_generate_autonomization_deliverables(project_id: str):
     """Generate all autonomization deliverables."""
     try:
@@ -455,18 +473,36 @@ def api_download_deliverable(project_id: str, filepath: str):
         if not project:
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
 
-        file_path = pm.config.projects_root / project_id / filepath
+        # Security: Normalize and resolve both paths
+        project_root = (pm.config.projects_root / project_id).resolve()
+        requested_file = (project_root / filepath).resolve()
 
-        if not file_path.exists():
+        # Security check 1: Ensure requested file is WITHIN project root
+        try:
+            requested_file.relative_to(project_root)
+        except ValueError:
+            # Path traversal attempt detected
+            return jsonify({'error': 'Access denied: Invalid file path'}), 403
+
+        # Security check 2: Only allow access to deliverables directory
+        deliverables_root = (project_root / "deliverables").resolve()
+        try:
+            requested_file.relative_to(deliverables_root)
+        except ValueError:
+            # Attempting to access file outside deliverables directory
+            return jsonify({'error': 'Access denied: Can only download deliverables'}), 403
+
+        # Check if file exists
+        if not requested_file.exists():
             return jsonify({'error': 'File not found'}), 404
 
-        # Security check: ensure file is within project directory
-        if not str(file_path.resolve()).startswith(str((pm.config.projects_root / project_id).resolve())):
-            return jsonify({'error': 'Access denied'}), 403
+        # Check if it's actually a file (not a directory)
+        if not requested_file.is_file():
+            return jsonify({'error': 'Invalid file'}), 400
 
-        return send_file(file_path, as_attachment=True)
+        return send_file(requested_file, as_attachment=True)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @app.route('/api/projects/<project_id>/cost', methods=['GET'])
@@ -525,6 +561,7 @@ def api_get_knowledge_base(project_id: str):
 
 
 @app.route('/api/projects/<project_id>/gate-review', methods=['POST'])
+@limiter.limit("10 per hour")  # Moderate cost: analyzes multiple deliverables
 def api_gate_review(project_id: str):
     """Evaluate project deliverables for gate readiness."""
     try:
@@ -556,6 +593,18 @@ def api_gate_review(project_id: str):
 
 
 # ==================== ERROR HANDLERS ====================
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    """Handle rate limit errors."""
+    if request.path.startswith('/api/'):
+        return jsonify({
+            'error': 'Rate limit exceeded',
+            'message': f'Too many requests. {e.description}',
+            'retry_after': e.description
+        }), 429
+    return render_template('error.html', message='Rate limit exceeded. Please try again later.'), 429
+
 
 @app.errorhandler(404)
 def not_found(error):
