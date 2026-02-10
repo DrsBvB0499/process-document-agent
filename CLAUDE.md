@@ -8,7 +8,7 @@ The system follows 5 phases: Standardization → Optimization → Digitization �
 
 See `system_architecture.md` for the full system design.
 
-## Current State (Stages 1-4 Complete ✅)
+## Current State (Stages 1-5 Complete ✅)
 
 ### Stage 1: Foundation (✅ Complete)
 - **Project Manager** (`agent/project_manager.py`) — Creates project folder structure, manages `project.json` state, handles project CRUD operations
@@ -32,14 +32,19 @@ See `system_architecture.md` for the full system design.
 - **Exception Register Generator** (`agent/exception_register_generator.py`) — Compiles known exceptions and handling procedures
 - **Standardization Orchestrator** (`agent/standardization_deliverables.py`) — Coordinates all 5 deliverable generators and produces complete standardization package
 
+### Stage 5: Gate Review System (✅ Complete)
+- **Gate Review Agent** (`agent/gate_review_agent.py`) — Evaluates deliverable completeness with weighted scoring system, checks required fields, enforces minimum thresholds, generates PASS/CONDITIONAL_PASS/FAIL decisions with actionable feedback
+- **Web API Integration** (`web/server.py`) — REST endpoint `/api/projects/<project_id>/gate-review` for submitting gate reviews, logs successful reviews to `gate_reviews/` folder
+- **Dashboard UI** (`web/templates/project.html`) — "Submit for Gate Review" action card with real-time evaluation results display showing score, decision, and specific issues to address
+
 ### Testing (✅ Complete)
 - **Integration Test Stage 1-3** (`test_integration_1_to_3.py`) — Tests project creation → knowledge processing → gap analysis → conversation logging
 - **Integration Test Stage 1-4** (`test_integration_1_to_4.py`) — End-to-end test including all standardization deliverable generation
 
-### What's Next (Stage 5+)
-**Stage 5: Gate Review** — Implement gate evaluation agent to check deliverable completeness and unlock phases
+### What's Next (Stage 6+)
+**Stage 6: Optimization Phase** — Implement deliverable generators for Value Stream Mapping, Waste Analysis, Quick Wins, KPI Dashboard following the same pattern as Standardization phase
 
-**Stages 6-10:** Optimization, Digitization, Automation, Autonomization phases following the same pattern
+**Stages 7-10:** Digitization, Automation, Autonomization phases following the same pattern
 
 **Teams Integration (Optional):** Wire Conversation Agent to Azure Bot Service for Teams channel operation
 
@@ -154,6 +159,15 @@ orchestrator = StandardizationDeliverablesOrchestrator()
 results = orchestrator.generate_all_deliverables("my-process-automation")
 # Generates: SIPOC, Process Map, Baseline Metrics, Flowchart, Exception Register
 # Saved to: projects/{project_id}/deliverables/1-standardization/
+```
+
+### Submit Gate Review
+```python
+from agent.gate_review_agent import GateReviewAgent
+gra = GateReviewAgent()
+result = gra.evaluate_gate(project_id="my-process-automation", phase="standardization")
+# Returns: {"decision": "PASS/CONDITIONAL_PASS/FAIL", "overall_score": 85, "issues": [...], "next_steps": "..."}
+# On PASS: logs review to projects/{project_id}/gate_reviews/standardization_gate_review.json
 ```
 
 ### Check Status

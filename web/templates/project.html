@@ -209,6 +209,14 @@
             <button id="generate-btn" class="btn btn-primary">Generate All</button>
             <div id="generate-status"></div>
         </div>
+
+        <!-- Gate Review -->
+        <div class="action-card">
+            <h3>✅ Gate Review</h3>
+            <p>Evaluate deliverables and unlock next phase</p>
+            <button id="gate-review-btn" class="btn btn-primary">Submit for Gate Review</button>
+            <div id="gate-review-status"></div>
+        </div>
     </div>
 </div>
 
@@ -380,6 +388,80 @@ document.getElementById('generate-btn').addEventListener('click', async function
     } finally {
         btn.disabled = false;
         btn.textContent = 'Generate All';
+    }
+});
+
+// Gate Review
+document.getElementById('gate-review-btn').addEventListener('click', async function() {
+    const btn = this;
+    const statusDiv = document.getElementById('gate-review-status');
+
+    if (!confirm('This will evaluate all deliverables for the Standardization phase gate review. Continue?')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Evaluating...';
+    statusDiv.innerHTML = '<div class="alert alert-info">Evaluating deliverables...</div>';
+
+    try {
+        const response = await fetch(`/api/projects/${PROJECT_ID}/gate-review`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ phase: 'standardization' })
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            const decision = data.decision;
+            const score = data.score;
+            const threshold = data.threshold;
+
+            if (decision === 'PASS') {
+                const feedbackHtml = (data.feedback || []).map(item => `<li>${item}</li>`).join('');
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>✅ GATE PASSED!</strong><br>
+                        Overall Score: ${score}% (threshold: ${threshold}%)<br>
+                        ${data.summary || ''}<br><br>
+                        <strong>Details:</strong>
+                        <ul>${feedbackHtml}</ul>
+                    </div>
+                `;
+                setTimeout(() => location.reload(), 3000);
+            } else if (decision === 'CONDITIONAL_PASS') {
+                const feedbackHtml = (data.feedback || []).map(item => `<li>${item}</li>`).join('');
+                statusDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <strong>⚠️ CONDITIONAL PASS</strong><br>
+                        Overall Score: ${score}% (threshold: ${threshold}%)<br>
+                        ${data.summary || ''}<br><br>
+                        <strong>Details:</strong>
+                        <ul>${feedbackHtml}</ul>
+                    </div>
+                `;
+            } else {
+                const feedbackHtml = (data.feedback || []).map(item => `<li>${item}</li>`).join('');
+                statusDiv.innerHTML = `
+                    <div class="alert alert-error">
+                        <strong>❌ GATE FAILED</strong><br>
+                        Overall Score: ${score}% (threshold: ${threshold}%)<br>
+                        ${data.summary || ''}<br><br>
+                        <strong>Details:</strong>
+                        <ul>${feedbackHtml}</ul>
+                    </div>
+                `;
+            }
+        } else {
+            statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+        }
+    } catch (error) {
+        statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit for Gate Review';
     }
 });
 </script>

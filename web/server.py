@@ -22,6 +22,7 @@ from agent.knowledge_processor import KnowledgeProcessor
 from agent.gap_analyzer import GapAnalyzer
 from agent.conversation_agent import ConversationAgent
 from agent.standardization_deliverables import StandardizationDeliverablesOrchestrator
+from agent.gate_review_agent import GateReviewAgent
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key-change-in-production")
@@ -33,6 +34,7 @@ kp = KnowledgeProcessor()
 ga = GapAnalyzer()
 ca = ConversationAgent()
 sdo = StandardizationDeliverablesOrchestrator()
+gra = GateReviewAgent()
 
 ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.txt', '.csv', '.json', '.png', '.jpg', '.jpeg'}
 
@@ -454,6 +456,37 @@ def api_get_knowledge_base(project_id: str):
             kb = json.load(f)
 
         return jsonify(kb)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/projects/<project_id>/gate-review', methods=['POST'])
+def api_gate_review(project_id: str):
+    """Evaluate project deliverables for gate readiness."""
+    try:
+        project = pm.get_project(project_id)
+        if not project:
+            return jsonify({'error': f"Project '{project_id}' not found"}), 404
+
+        # Get phase from request (default to standardization)
+        data = request.get_json() or {}
+        phase = data.get('phase', 'standardization')
+
+        # Run gate review
+        result = gra.evaluate_gate(project_id=project_id, phase=phase)
+
+        # If passed, update project.json to unlock next phase
+        if result.get('decision') == 'PASS':
+            # Log gate review success
+            gate_review_log = pm.config.projects_root / project_id / "gate_reviews"
+            gate_review_log.mkdir(parents=True, exist_ok=True)
+
+            log_file = gate_review_log / f"{phase}_gate_review.json"
+            with open(log_file, 'w', encoding='utf-8') as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+
+        return jsonify(result)
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
