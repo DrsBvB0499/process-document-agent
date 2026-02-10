@@ -31,6 +31,8 @@ import mimetypes
 
 from agent.llm import call_model
 from agent.validators import validate_project_id
+from agent.hybrid_security import HybridSecurityChecker
+from agent.security_logger import SecurityLogger
 
 
 class KnowledgeProcessor:
@@ -38,12 +40,14 @@ class KnowledgeProcessor:
 
     def __init__(self, projects_root: Optional[Path] = None):
         """Initialize the Knowledge Processor.
-        
+
         Args:
-            projects_root: Root directory for projects. 
+            projects_root: Root directory for projects.
                           Defaults to ./projects/
         """
         self.projects_root = Path(projects_root or (Path(__file__).parent.parent / "projects"))
+        self.security_checker = HybridSecurityChecker(self.projects_root)
+        self.security_logger = SecurityLogger(self.projects_root)
 
     def process_project(self, project_id: str) -> Dict[str, Any]:
         """Process all uploaded files for a project.
@@ -143,7 +147,7 @@ class KnowledgeProcessor:
         self, project_id: str, file_path: Path, uploaded_path: Path
     ) -> Optional[Dict[str, Any]]:
         """Process a single uploaded file.
-        
+
         Reads the file, calls the LLM to extract information,
         and returns an analysis entry.
         """
@@ -151,6 +155,41 @@ class KnowledgeProcessor:
         file_content = self._read_file(file_path)
         if not file_content:
             return None
+
+        # SECURITY: Check file content for injection attempts (limit check to first 5000 chars for performance)
+        content_preview = file_content[:5000]
+        security_check = self.security_checker.check_input(
+            user_input=content_preview,
+            project_id=project_id,
+            context="file_upload"
+        )
+
+        # Log if suspicious
+        if not security_check.is_safe:
+            self.security_logger.log_event(
+                event_type="suspicious_file_content",
+                project_id=project_id,
+                user_id="file_upload",
+                risk_level=security_check.risk_level,
+                threats=security_check.threats_detected,
+                details={
+                    "filename": file_path.name,
+                    "file_type": file_path.suffix,
+                    "file_size": file_path.stat().st_size,
+                    "check_method": security_check.check_method
+                }
+            )
+
+        # Block critical threats in uploaded files
+        if security_check.risk_level == "critical":
+            return {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "source_file": file_path.name,
+                "file_type": file_path.suffix,
+                "status": "blocked",
+                "error": "File content blocked due to security concerns",
+                "extraction": {}
+            }
 
         # Determine file type
         file_type = file_path.suffix.lower()

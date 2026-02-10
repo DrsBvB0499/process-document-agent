@@ -35,6 +35,8 @@ from typing import Any, Dict, Optional
 from agent.llm import call_model
 from agent.gap_analyzer import GapAnalyzer
 from agent.validators import validate_project_id, validate_user_role
+from agent.hybrid_security import HybridSecurityChecker
+from agent.security_logger import SecurityLogger
 
 
 class ConversationAgent:
@@ -66,7 +68,7 @@ class ConversationAgent:
 
     def __init__(self, projects_root: Optional[Path] = None):
         """Initialize the Conversation Agent.
-        
+
         Args:
             projects_root: Root directory for projects.
         """
@@ -74,6 +76,8 @@ class ConversationAgent:
             projects_root or (Path(__file__).parent.parent / "projects")
         )
         self.gap_analyzer = GapAnalyzer(projects_root)
+        self.security_checker = HybridSecurityChecker(self.projects_root)
+        self.security_logger = SecurityLogger(self.projects_root)
 
     def handle_message(
         self,
@@ -102,6 +106,42 @@ class ConversationAgent:
 
         if not validate_user_role(user_role):
             return f"Error: Invalid user role '{user_role}'. Valid roles are: process_owner, business_analyst, sme, developer."
+
+        # SECURITY: Check for prompt injection (skip for initial greeting)
+        if message.strip() != "__START__":
+            security_check = self.security_checker.check_input(
+                user_input=message,
+                project_id=project_id,
+                context="conversation"
+            )
+
+            # Log security event
+            if not security_check.is_safe:
+                self.security_logger.log_event(
+                    event_type="prompt_injection_detected" if security_check.risk_level == "critical" else "suspicious_input",
+                    project_id=project_id,
+                    user_id=user_id,
+                    risk_level=security_check.risk_level,
+                    threats=security_check.threats_detected,
+                    details={
+                        "input_preview": message[:200],
+                        "check_method": security_check.check_method,
+                        "context": "conversation",
+                        "user_role": user_role
+                    }
+                )
+
+            # Block critical threats
+            if security_check.risk_level == "critical":
+                return (
+                    "I detected a potential security issue with your message. "
+                    "Please rephrase your question without special instructions or commands. "
+                    "If you believe this is an error, please contact support."
+                )
+
+            # For suspicious inputs, use sanitized version
+            if security_check.risk_level in ["medium", "high"]:
+                message = security_check.sanitized_input
 
         # REAL-TIME LEARNING: Process user's message BEFORE generating response
         # This ensures the next question is based on updated knowledge
