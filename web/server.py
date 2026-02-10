@@ -23,6 +23,9 @@ from agent.gap_analyzer import GapAnalyzer
 from agent.conversation_agent import ConversationAgent
 from agent.standardization_deliverables import StandardizationDeliverablesOrchestrator
 from agent.optimization_deliverables import OptimizationDeliverablesOrchestrator
+from agent.digitization_deliverables import DigitizationDeliverablesOrchestrator
+from agent.automation_deliverables import AutomationDeliverablesOrchestrator
+from agent.autonomization_deliverables import AutonomizationDeliverablesOrchestrator
 from agent.gate_review_agent import GateReviewAgent
 
 app = Flask(__name__)
@@ -36,6 +39,9 @@ ga = GapAnalyzer()
 ca = ConversationAgent()
 sdo = StandardizationDeliverablesOrchestrator()
 odo = OptimizationDeliverablesOrchestrator()
+ddo = DigitizationDeliverablesOrchestrator()
+ado = AutomationDeliverablesOrchestrator()
+audo = AutonomizationDeliverablesOrchestrator()
 gra = GateReviewAgent()
 
 ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.txt', '.csv', '.json', '.png', '.jpg', '.jpeg'}
@@ -365,6 +371,48 @@ def api_generate_optimization_deliverables(project_id: str):
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
 
         results = odo.generate_all_deliverables(project_id)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/projects/<project_id>/generate-digitization', methods=['POST'])
+def api_generate_digitization_deliverables(project_id: str):
+    """Generate all digitization deliverables."""
+    try:
+        project = pm.get_project(project_id)
+        if not project:
+            return jsonify({'error': f"Project '{project_id}' not found"}), 404
+
+        results = ddo.generate_all_deliverables(project_id)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/projects/<project_id>/generate-automation', methods=['POST'])
+def api_generate_automation_deliverables(project_id: str):
+    """Generate all automation deliverables."""
+    try:
+        project = pm.get_project(project_id)
+        if not project:
+            return jsonify({'error': f"Project '{project_id}' not found"}), 404
+
+        results = ado.generate_all_deliverables(project_id)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/projects/<project_id>/generate-autonomization', methods=['POST'])
+def api_generate_autonomization_deliverables(project_id: str):
+    """Generate all autonomization deliverables."""
+    try:
+        project = pm.get_project(project_id)
+        if not project:
+            return jsonify({'error': f"Project '{project_id}' not found"}), 404
+
+        results = audo.generate_all_deliverables(project_id)
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
