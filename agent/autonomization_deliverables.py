@@ -1,162 +1,242 @@
 """
 Autonomization Deliverables Orchestrator — Stage 9
 
-Orchestrates Autonomization Phase deliverable generation.
-Generates AI/ML Opportunities and Self-Healing Design.
+Orchestrates Autonomization Phase deliverable generation using dedicated generators:
+  1. AI/ML Opportunities Generator (intelligent capability identification)
+  2. Self-Healing Design Generator (autonomous resilience patterns)
+
+Produces complete autonomization package for intelligent, self-sustaining operations.
 
 Author: Intelligent Automation Agent
 """
 
 import json
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, List, Any, Optional
 from datetime import datetime
+
+from agent.ai_opportunities_generator import AIOpportunitiesGenerator
+from agent.self_healing_generator import SelfHealingGenerator
 
 
 class AutonomizationDeliverablesOrchestrator:
-    """Orchestrates Stage 9 Autonomization Phase deliverable generation."""
+    """
+    Orchestrates Stage 9 Autonomization Phase deliverable generation.
+
+    Generates:
+    1. AI/ML Opportunities with data assessment
+    2. Self-Healing Design with resilience patterns
+
+    All deliverables are saved to:
+      projects/{project_id}/deliverables/5-autonomization/
+    """
 
     def __init__(self, projects_root: str = "projects"):
+        """
+        Initialize the orchestrator.
+
+        Args:
+            projects_root: Root directory where projects are stored
+        """
         self.projects_root = Path(projects_root)
 
+        # Initialize generators
+        self.ai_gen = AIOpportunitiesGenerator(projects_root)
+        self.healing_gen = SelfHealingGenerator(projects_root)
+
     def generate_all_deliverables(self, project_id: str) -> Dict[str, Any]:
-        """Generate all autonomization deliverables."""
+        """
+        Generate all autonomization deliverables from knowledge base.
+
+        Args:
+            project_id: ID of the project to analyze
+
+        Returns:
+            Dict with comprehensive autonomization package:
+            {
+                "status": "success|partial|failed",
+                "project_id": str,
+                "timestamp": ISO8601,
+                "deliverables": {
+                    "ai_ml_opportunities": {...},
+                    "self_healing_design": {...}
+                },
+                "overall_completeness": 0-100,
+                "files_saved": {
+                    "ai_ml_opportunities": path,
+                    "self_healing_design": path
+                },
+                "completeness_by_deliverable": {
+                    "ai_ml_opportunities": 0-100,
+                    "self_healing_design": 0-100
+                },
+                "total_llm_cost_usd": float,
+                "next_steps": [...],
+                "execution_time_seconds": float
+            }
+        """
         print(f"\n🚀 Generating Stage 9: Autonomization Deliverables")
         print(f"   Project: {project_id}")
+        print(f"   Timestamp: {datetime.now().isoformat()}")
         print(f"   {'='*60}")
 
         start_time = datetime.now()
 
-        # Load knowledge base
-        kb_path = self.projects_root / project_id / "knowledge" / "extracted" / "knowledge_base.json"
-        if not kb_path.exists():
-            return {
-                "status": "failed",
-                "error": "Knowledge base not found",
-                "project_id": project_id,
-                "timestamp": datetime.now().isoformat()
-            }
-
-        with open(kb_path, 'r', encoding='utf-8') as f:
-            kb = json.load(f)
-
-        # Generate AI/ML opportunities
-        print("\n[1/2] Identifying AI/ML Opportunities...")
-        ai_opportunities = self._identify_ai_opportunities(kb.get("facts", []))
-
-        # Generate self-healing design
-        print("\n[2/2] Creating Self-Healing Design...")
-        self_healing = self._create_self_healing_design(kb.get("exceptions", []))
-
-        # Save deliverables
-        deliverable_path = self.projects_root / project_id / "deliverables" / "5-autonomization"
-        deliverable_path.mkdir(parents=True, exist_ok=True)
-
-        ai_file = deliverable_path / "ai_ml_opportunities.json"
-        with open(ai_file, 'w', encoding='utf-8') as f:
-            json.dump(ai_opportunities, f, indent=2, ensure_ascii=False)
-
-        healing_file = deliverable_path / "self_healing_design.json"
-        with open(healing_file, 'w', encoding='utf-8') as f:
-            json.dump(self_healing, f, indent=2, ensure_ascii=False)
-
+        # Track results
         results = {
             "status": "success",
             "project_id": project_id,
             "timestamp": datetime.now().isoformat(),
-            "deliverables": {
-                "ai_ml_opportunities": ai_opportunities,
-                "self_healing_design": self_healing
-            },
-            "files_saved": {
-                "ai_ml_opportunities": str(ai_file),
-                "self_healing_design": str(healing_file)
-            },
-            "overall_completeness": 80,
-            "execution_time_seconds": round((datetime.now() - start_time).total_seconds(), 2)
+            "deliverables": {},
+            "files_saved": {},
+            "completeness_by_deliverable": {},
+            "total_llm_cost_usd": 0.0
         }
 
+        # Generate AI/ML Opportunities
+        print("\n[1/2] Identifying AI/ML Opportunities (LLM-based)...")
+        try:
+            ai_result = self.ai_gen.generate_ai_opportunities(project_id)
+            results["deliverables"]["ai_ml_opportunities"] = {
+                k: v for k, v in ai_result.items()
+                if k not in ["opportunities"]  # Exclude large data from summary
+            }
+            results["completeness_by_deliverable"]["ai_ml_opportunities"] = (
+                ai_result.get("completeness", {}).get("overall", 0)
+            )
+            results["total_llm_cost_usd"] += ai_result.get("llm_cost_usd", 0.0)
+
+            if ai_result.get("status") in ["success", "partial"]:
+                opportunities_count = len(ai_result.get("opportunities", []))
+                high_confidence = sum(
+                    1 for o in ai_result.get("opportunities", [])
+                    if o.get("expected_performance", {}).get("confidence_level") == "high"
+                )
+                file_path = self.projects_root / project_id / "deliverables" / "5-autonomization" / "ai_ml_opportunities.json"
+                results["files_saved"]["ai_ml_opportunities"] = str(file_path)
+                print(f"   ✓ AI/ML Opportunities identified ({opportunities_count} total, {high_confidence} high confidence)")
+                print(f"   💰 LLM Cost: ${ai_result.get('llm_cost_usd', 0.0):.4f}")
+            else:
+                print(f"   ✗ AI/ML Opportunities failed: {ai_result.get('error')}")
+                results["status"] = "partial"
+        except Exception as e:
+            print(f"   ✗ AI/ML Opportunities error: {str(e)}")
+            results["status"] = "partial"
+
+        # Generate Self-Healing Design
+        print("\n[2/2] Designing Self-Healing Patterns (LLM-based)...")
+        try:
+            healing_result = self.healing_gen.generate_self_healing_design(project_id)
+            results["deliverables"]["self_healing_design"] = {
+                k: v for k, v in healing_result.items()
+                if k not in ["healing_patterns"]  # Exclude large data from summary
+            }
+            results["completeness_by_deliverable"]["self_healing_design"] = (
+                healing_result.get("completeness", {}).get("overall", 0)
+            )
+            results["total_llm_cost_usd"] += healing_result.get("llm_cost_usd", 0.0)
+
+            if healing_result.get("status") in ["success", "partial"]:
+                patterns_count = len(healing_result.get("healing_patterns", []))
+                critical_patterns = sum(
+                    1 for p in healing_result.get("healing_patterns", [])
+                    if p.get("impact") == "critical"
+                )
+                file_path = self.projects_root / project_id / "deliverables" / "5-autonomization" / "self_healing_design.json"
+                results["files_saved"]["self_healing_design"] = str(file_path)
+                print(f"   ✓ Self-Healing Design completed ({patterns_count} patterns, {critical_patterns} critical)")
+                print(f"   💰 LLM Cost: ${healing_result.get('llm_cost_usd', 0.0):.4f}")
+            else:
+                print(f"   ✗ Self-Healing Design failed: {healing_result.get('error')}")
+                results["status"] = "partial"
+        except Exception as e:
+            print(f"   ✗ Self-Healing Design error: {str(e)}")
+            results["status"] = "partial"
+
+        # Calculate overall completeness
+        completeness_values = [v for v in results["completeness_by_deliverable"].values()]
+        results["overall_completeness"] = sum(completeness_values) // len(completeness_values) if completeness_values else 0
+
+        # Generate next steps
+        results["next_steps"] = self._recommend_next_steps(results)
+
+        # Execution time
+        duration = (datetime.now() - start_time).total_seconds()
+        results["execution_time_seconds"] = round(duration, 2)
+
+        # Summary
         print(f"\n{'='*60}")
         print(f"AUTONOMIZATION PHASE SUMMARY")
         print(f"{'='*60}")
-        print(f"AI Opportunities: {len(ai_opportunities.get('opportunities', []))}")
-        print(f"Self-Healing Patterns: {len(self_healing.get('patterns', []))}")
+        print(f"Overall Completeness: {results['overall_completeness']}%")
+        print(f"Execution Time: {results['execution_time_seconds']}s")
+        print(f"Total LLM Cost: ${results['total_llm_cost_usd']:.4f}")
+        print(f"\nFiles Saved:")
+        for deliverable, path in results["files_saved"].items():
+            completeness = results["completeness_by_deliverable"].get(deliverable, 0)
+            print(f"  ✓ {deliverable:25} ({completeness:3}%) -> {Path(path).name}")
+
+        print(f"\nNext Steps:")
+        for step in results["next_steps"]:
+            print(f"  • {step}")
 
         return results
 
-    def _identify_ai_opportunities(self, facts: list) -> dict:
-        """Identify opportunities for AI/ML."""
-        opportunities = []
+    def _recommend_next_steps(self, results: Dict[str, Any]) -> List[str]:
+        """
+        Generate recommendations for next steps based on completeness.
 
-        # Look for decision points (ML classification candidates)
-        decision_facts = [f for f in facts if f.get("category") == "decisions"]
-        for idx, fact in enumerate(decision_facts):
-            opportunities.append({
-                "id": f"AI-{idx+1}",
-                "type": "ML Classification",
-                "description": f"Automate decision: {fact.get('fact')}",
-                "use_case": "Train ML model to classify and route automatically",
-                "expected_accuracy": "85-95%",
-                "implementation_effort": "medium"
-            })
+        Args:
+            results: Results from deliverable generation
 
-        # Look for complex data processing (NLP candidates)
-        step_facts = [f for f in facts if f.get("category") == "process_steps"]
-        nlp_steps = [f for f in step_facts if any(word in f.get("fact", "").lower() for word in ["review", "analyze", "extract", "read"])]
+        Returns:
+            List of recommended next steps
+        """
+        next_steps = []
 
-        for idx, fact in enumerate(nlp_steps):
-            opportunities.append({
-                "id": f"AI-NLP-{idx+1}",
-                "type": "Natural Language Processing",
-                "description": f"Automate: {fact.get('fact')}",
-                "use_case": "Extract information from unstructured text using NLP",
-                "expected_accuracy": "80-90%",
-                "implementation_effort": "high"
-            })
+        # Analyze completeness by deliverable
+        completeness = results["completeness_by_deliverable"]
 
-        return {
-            "opportunities": opportunities,
-            "total_opportunities": len(opportunities),
-            "recommended_priority": opportunities[:3] if len(opportunities) >= 3 else opportunities
-        }
+        if completeness.get("ai_ml_opportunities", 0) < 80:
+            next_steps.append("Complete AI/ML opportunity assessment (data availability, expected performance)")
 
-    def _create_self_healing_design(self, exceptions: list) -> dict:
-        """Create self-healing patterns for exceptions."""
-        patterns = []
+        if completeness.get("self_healing_design", 0) < 80:
+            next_steps.append("Finalize self-healing patterns with monitoring and learning mechanisms")
 
-        # Create healing pattern for each exception type
-        for idx, exception in enumerate(exceptions[:5]):  # Limit to 5
-            patterns.append({
-                "id": f"HEAL-{idx+1}",
-                "exception": exception,
-                "healing_strategy": "Automatic retry with exponential backoff",
-                "fallback": "Alert human operator if retry fails after 3 attempts",
-                "monitoring": {
-                    "metrics": ["error_rate", "healing_success_rate"],
-                    "alerts": ["threshold breach", "pattern change"]
-                },
-                "continuous_learning": "Log patterns and improve healing logic over time"
-            })
+        # Check if ready to proceed
+        if results["overall_completeness"] >= 80:
+            next_steps.append("Gate Review: Evaluate autonomization readiness and strategic fit")
+            next_steps.append("Begin AI/ML proof of concept with highest confidence opportunity")
+            next_steps.append("Implement critical self-healing patterns in production")
+            next_steps.append("Establish MLOps and monitoring infrastructure")
+            next_steps.append("Design continuous learning and improvement cycles")
+        else:
+            next_steps.append("Run Conversation Agent to gather missing autonomization details")
+            next_steps.append("Re-run AutonomizationDeliverablesOrchestrator to update analysis")
 
-        return {
-            "patterns": patterns,
-            "principles": [
-                "Detect and diagnose errors automatically",
-                "Attempt self-recovery before human intervention",
-                "Learn from failures to improve over time",
-                "Maintain audit trail of all healing actions"
-            ],
-            "monitoring_dashboard": {
-                "kpis": [
-                    "Self-healing success rate",
-                    "Mean time to recovery (MTTR)",
-                    "Human intervention rate"
-                ]
-            }
-        }
+        # Add specific recommendations based on deliverables
+        ai_opportunities = results.get("deliverables", {}).get("ai_ml_opportunities", {})
+        if ai_opportunities.get("summary", {}).get("data_readiness_score") == "high":
+            next_steps.append("Prioritize AI/ML opportunities with high data readiness")
+
+        healing_design = results.get("deliverables", {}).get("self_healing_design", {})
+        if healing_design.get("summary", {}).get("autonomous_recovery_potential", "").startswith("8") or \
+           healing_design.get("summary", {}).get("autonomous_recovery_potential", "").startswith("9"):
+            next_steps.append("High autonomous recovery potential - prioritize self-healing implementation")
+
+        return next_steps
+
+
+def main():
+    """Test the orchestrator."""
+    orchestrator = AutonomizationDeliverablesOrchestrator()
+    results = orchestrator.generate_all_deliverables("sd-light-invoicing-2")
+
+    print("\n" + "="*60)
+    print("DETAILED RESULTS")
+    print("="*60)
+    print(json.dumps({k: v for k, v in results.items() if k != "deliverables"}, indent=2))
 
 
 if __name__ == "__main__":
-    orchestrator = AutonomizationDeliverablesOrchestrator()
-    results = orchestrator.generate_all_deliverables("sd-light-invoicing-2")
-    print(f"\nStatus: {results['status']}")
+    main()

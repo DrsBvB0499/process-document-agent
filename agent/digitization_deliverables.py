@@ -73,13 +73,66 @@ class DigitizationDeliverablesOrchestrator:
         results["overall_completeness"] = sum(completeness_values) // len(completeness_values) if completeness_values else 0
         results["execution_time_seconds"] = round((datetime.now() - start_time).total_seconds(), 2)
 
+        # Generate next steps
+        results["next_steps"] = self._recommend_next_steps(results)
+
         print(f"\n{'='*60}")
         print(f"DIGITIZATION PHASE SUMMARY")
         print(f"{'='*60}")
         print(f"Overall Completeness: {results['overall_completeness']}%")
         print(f"Execution Time: {results['execution_time_seconds']}s")
+        print(f"\nFiles Saved:")
+        for deliverable, path in results["files_saved"].items():
+            completeness = results["completeness_by_deliverable"].get(deliverable, 0)
+            print(f"  ✓ {deliverable:25} ({completeness:3}%) -> {Path(path).name}")
+
+        print(f"\nNext Steps:")
+        for step in results["next_steps"]:
+            print(f"  • {step}")
 
         return results
+
+    def _recommend_next_steps(self, results: Dict[str, Any]) -> List[str]:
+        """
+        Generate recommendations for next steps based on completeness.
+
+        Args:
+            results: Results from deliverable generation
+
+        Returns:
+            List of recommended next steps
+        """
+        next_steps = []
+
+        # Analyze completeness by deliverable
+        completeness = results["completeness_by_deliverable"]
+
+        if completeness.get("system_architecture", 0) < 80:
+            next_steps.append("Complete system architecture (identify all systems, integrations, and deployment models)")
+
+        if completeness.get("data_flow", 0) < 80:
+            next_steps.append("Map complete data flows between systems and processes")
+
+        # Check if ready to proceed
+        if results["overall_completeness"] >= 80:
+            next_steps.append("Gate Review: Evaluate digitization readiness")
+            next_steps.append("Assess cloud migration opportunities for on-premise systems")
+            next_steps.append("Plan API integration strategy to replace manual system handoffs")
+            next_steps.append("Proceed to Automation Phase")
+        else:
+            next_steps.append("Run Conversation Agent to gather missing digitization details")
+            next_steps.append("Re-run DigitizationDeliverablesOrchestrator to update analysis")
+
+        # Add specific recommendations based on architecture
+        system_arch = results.get("deliverables", {}).get("system_architecture", {})
+        if system_arch.get("architecture", {}).get("summary", {}).get("digital_readiness") == "low":
+            next_steps.append("Low digital readiness - prioritize cloud adoption and system modernization")
+
+        digital_opportunities = system_arch.get("architecture", {}).get("digital_opportunities", [])
+        if digital_opportunities:
+            next_steps.append(f"Address {len(digital_opportunities)} digital transformation opportunities identified")
+
+        return next_steps
 
 
 if __name__ == "__main__":
