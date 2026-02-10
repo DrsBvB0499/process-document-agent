@@ -22,6 +22,7 @@ from agent.knowledge_processor import KnowledgeProcessor
 from agent.gap_analyzer import GapAnalyzer
 from agent.conversation_agent import ConversationAgent
 from agent.standardization_deliverables import StandardizationDeliverablesOrchestrator
+from agent.optimization_deliverables import OptimizationDeliverablesOrchestrator
 from agent.gate_review_agent import GateReviewAgent
 
 app = Flask(__name__)
@@ -34,6 +35,7 @@ kp = KnowledgeProcessor()
 ga = GapAnalyzer()
 ca = ConversationAgent()
 sdo = StandardizationDeliverablesOrchestrator()
+odo = OptimizationDeliverablesOrchestrator()
 gra = GateReviewAgent()
 
 ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.txt', '.csv', '.json', '.png', '.jpg', '.jpeg'}
@@ -349,6 +351,20 @@ def api_generate_deliverables(project_id: str):
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
 
         results = sdo.generate_all_deliverables(project_id)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/projects/<project_id>/generate-optimization', methods=['POST'])
+def api_generate_optimization_deliverables(project_id: str):
+    """Generate all optimization deliverables."""
+    try:
+        project = pm.get_project(project_id)
+        if not project:
+            return jsonify({'error': f"Project '{project_id}' not found"}), 404
+
+        results = odo.generate_all_deliverables(project_id)
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500

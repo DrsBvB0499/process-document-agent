@@ -8,7 +8,7 @@ The system follows 5 phases: Standardization → Optimization → Digitization �
 
 See `system_architecture.md` for the full system design.
 
-## Current State (Stages 1-5 Complete ✅)
+## Current State (Stages 1-6 Complete ✅)
 
 ### Stage 1: Foundation (✅ Complete)
 - **Project Manager** (`agent/project_manager.py`) — Creates project folder structure, manages `project.json` state, handles project CRUD operations
@@ -37,14 +37,22 @@ See `system_architecture.md` for the full system design.
 - **Web API Integration** (`web/server.py`) — REST endpoint `/api/projects/<project_id>/gate-review` for submitting gate reviews, logs successful reviews to `gate_reviews/` folder
 - **Dashboard UI** (`web/templates/project.html`) — "Submit for Gate Review" action card with real-time evaluation results display showing score, decision, and specific issues to address
 
+### Stage 6: Optimization Phase (✅ Complete)
+- **Value Stream Mapping Generator** (`agent/value_stream_generator.py`) — Generates Value Stream Map showing process flow with cycle times, wait times, value-added vs. non-value-added classification, bottlenecks, and efficiency metrics (VA ratio, process efficiency)
+- **Waste Analysis Generator** (`agent/waste_analysis_generator.py`) — Identifies 8 types of waste using Lean TIMWOODS methodology (Transport, Inventory, Motion, Waiting, Overproduction, Overprocessing, Defects, Skills), provides impact assessment and improvement recommendations
+- **Quick Wins Identifier** (`agent/quick_wins_generator.py`) — Identifies low-effort, high-impact improvement opportunities, prioritizes based on effort-impact matrix, estimates savings and implementation time for each quick win
+- **KPI Dashboard Generator** (`agent/kpi_dashboard_generator.py`) — Defines measurable improvement targets across time, cost, quality, and volume categories with baseline and target metrics, calculates SMART KPIs from baseline data
+- **Optimization Orchestrator** (`agent/optimization_deliverables.py`) — Coordinates all 4 optimization generators and produces complete optimization package with improvement roadmap
+- **Web UI Integration** — Added "Generate Optimization Deliverables" action card and REST endpoint `/api/projects/<project_id>/generate-optimization`
+
 ### Testing (✅ Complete)
 - **Integration Test Stage 1-3** (`test_integration_1_to_3.py`) — Tests project creation → knowledge processing → gap analysis → conversation logging
 - **Integration Test Stage 1-4** (`test_integration_1_to_4.py`) — End-to-end test including all standardization deliverable generation
 
-### What's Next (Stage 6+)
-**Stage 6: Optimization Phase** — Implement deliverable generators for Value Stream Mapping, Waste Analysis, Quick Wins, KPI Dashboard following the same pattern as Standardization phase
+### What's Next (Stage 7+)
+**Stage 7: Digitization Phase** — Implement deliverable generators for System Architecture, Data Flow Diagrams, Integration Map, User Stories
 
-**Stages 7-10:** Digitization, Automation, Autonomization phases following the same pattern
+**Stages 8-10:** Automation, Autonomization phases following the same pattern
 
 **Teams Integration (Optional):** Wire Conversation Agent to Azure Bot Service for Teams channel operation
 
@@ -168,6 +176,15 @@ gra = GateReviewAgent()
 result = gra.evaluate_gate(project_id="my-process-automation", phase="standardization")
 # Returns: {"decision": "PASS/CONDITIONAL_PASS/FAIL", "overall_score": 85, "issues": [...], "next_steps": "..."}
 # On PASS: logs review to projects/{project_id}/gate_reviews/standardization_gate_review.json
+```
+
+### Generate Optimization Deliverables
+```python
+from agent.optimization_deliverables import OptimizationDeliverablesOrchestrator
+orchestrator = OptimizationDeliverablesOrchestrator()
+results = orchestrator.generate_all_deliverables("my-process-automation")
+# Generates: Value Stream Map, Waste Analysis, Quick Wins, KPI Dashboard
+# Saved to: projects/{project_id}/deliverables/2-optimization/
 ```
 
 ### Check Status

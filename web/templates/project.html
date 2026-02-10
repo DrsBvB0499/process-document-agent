@@ -217,6 +217,14 @@
             <button id="gate-review-btn" class="btn btn-primary">Submit for Gate Review</button>
             <div id="gate-review-status"></div>
         </div>
+
+        <!-- Generate Optimization Deliverables -->
+        <div class="action-card">
+            <h3>🎯 Optimization Phase</h3>
+            <p>Generate Value Stream Map, Waste Analysis, Quick Wins, KPI Dashboard</p>
+            <button id="generate-optimization-btn" class="btn btn-primary">Generate Optimization Deliverables</button>
+            <div id="optimization-status"></div>
+        </div>
     </div>
 </div>
 
@@ -462,6 +470,41 @@ document.getElementById('gate-review-btn').addEventListener('click', async funct
     } finally {
         btn.disabled = false;
         btn.textContent = 'Submit for Gate Review';
+    }
+});
+
+// Generate Optimization Deliverables
+document.getElementById('generate-optimization-btn').addEventListener('click', async function() {
+    const btn = this;
+    const statusDiv = document.getElementById('optimization-status');
+
+    if (!confirm('This will generate all Optimization phase deliverables (Value Stream Map, Waste Analysis, Quick Wins, KPI Dashboard). Continue?')) {
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+    statusDiv.innerHTML = '<div class="alert alert-info">Generating optimization deliverables... This may take a minute.</div>';
+
+    try {
+        const response = await fetch(`/api/projects/${PROJECT_ID}/generate-optimization`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (response.ok) {
+            const completeness = data.overall_completeness || 0;
+            const deliverableCount = Object.keys(data.files_saved || {}).length;
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ Generated ${deliverableCount} optimization deliverables! Overall: ${completeness}%</div>`;
+            setTimeout(() => location.reload(), 3000);
+        } else {
+            statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
+        }
+    } catch (error) {
+        statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Optimization Deliverables';
     }
 });
 </script>
