@@ -212,8 +212,11 @@ class ConversationAgent:
         """Generate a response guided by gap brief."""
         role_config = self.ROLE_CONFIG.get(user_role, self.ROLE_CONFIG["sme"])
 
-        # Load recent conversation history to avoid asking same questions
-        conversation_history = self._get_recent_history(project_id, limit=5)
+        # Load full conversation history so the LLM retains context
+        conversation_history = self._get_recent_history(project_id, limit=50)
+
+        # Load knowledge base facts so the LLM knows what's already gathered
+        knowledge_summary = self._format_knowledge_for_prompt(project_id)
 
         # Build a prompt that tells the LLM what gaps exist and what to ask
         prompt = self._build_response_prompt(
@@ -221,6 +224,7 @@ class ConversationAgent:
             role_config=role_config,
             gap_brief=gap_brief,
             conversation_history=conversation_history,
+            knowledge_summary=knowledge_summary,
         )
 
         # Build language system prompt if not English
@@ -382,12 +386,42 @@ Now write a similar greeting for this user and project. Keep it under 60 words.
 
         return "\n".join(history_lines)
 
+    def _format_knowledge_for_prompt(self, project_id: str) -> str:
+        """Load knowledge base and format facts for inclusion in LLM prompt."""
+        kb_path = self.projects_root / project_id / "knowledge" / "extracted" / "knowledge_base.json"
+        if not kb_path.exists():
+            return "No knowledge base yet."
+
+        try:
+            with open(kb_path, "r", encoding="utf-8") as f:
+                kb_data = json.load(f)
+        except Exception:
+            return "No knowledge base yet."
+
+        facts = kb_data.get("facts", [])
+        if not facts:
+            return "No facts gathered yet."
+
+        # Group by category
+        by_category: Dict[str, list] = {}
+        for fact in facts:
+            cat = fact.get("category", "general")
+            by_category.setdefault(cat, []).append(fact.get("fact", str(fact)))
+
+        lines = []
+        for cat, items in sorted(by_category.items()):
+            lines.append(f"  {cat.upper().replace('_', ' ')}:")
+            for item in items:
+                lines.append(f"    - {item}")
+        return "\n".join(lines)
+
     def _build_response_prompt(
         self,
         user_message: str,
         role_config: Dict[str, Any],
         gap_brief: Dict[str, Any],
         conversation_history: str = "",
+        knowledge_summary: str = "",
     ) -> str:
         """Build a prompt that guides the LLM on how to respond."""
         deliverable_gaps = gap_brief.get("deliverable_gaps", [])
@@ -418,6 +452,10 @@ STILL MISSING: {', '.join(missing_fields[:3])}
 
 USER'S ROLE: {role.capitalize()} | CONVERSATION STYLE: {depth}
 
+===== KNOWN FACTS (from documents + conversations — DO NOT re-ask these!) =====
+{knowledge_summary if knowledge_summary else "No facts gathered yet."}
+================================================================================
+
 ===== FULL CONVERSATION HISTORY (READ THIS CAREFULLY!) =====
 {conversation_history if conversation_history else "No previous conversation."}
 ==============================================================
@@ -427,6 +465,12 @@ USER'S CURRENT MESSAGE:
 
 WHAT WE'RE WORKING ON:
 {gap_context}
+
+🚨 ABSOLUTE RULE: USE EXISTING KNOWLEDGE 🚨
+- You MUST reference the KNOWN FACTS above when relevant
+- NEVER ask for information that already appears in KNOWN FACTS or conversation history
+- If the user says "I already told you" or similar, find the answer in the sections above and acknowledge it
+- When summarizing or drafting (e.g., flowchart steps), pull ALL details from KNOWN FACTS + history
 
 🚨 CRITICAL: DETECT LOOP SITUATIONS 🚨
 If the user says ANY of these phrases, you are in a LOOP and must STOP:
