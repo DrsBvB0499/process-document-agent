@@ -82,6 +82,18 @@ class ConversationAgent:
     # Language names for LLM prompt instructions
     LANG_NAMES = {"en": "English", "nl": "Dutch (Nederlands)"}
 
+    # Completeness threshold for triggering deliverable generation
+    GENERATION_THRESHOLD = 80
+
+    # Short confirmatory replies that signal "proceed with generation"
+    CONFIRMATION_PATTERNS = [
+        "yes", "yeah", "yep", "sure", "go ahead", "do it", "proceed",
+        "generate", "that's it", "that's all", "nope", "no more",
+        "nothing else", "that's perfect", "looks good", "sounds good",
+        "perfect", "ok", "okay", "correct", "no changes", "nothing to add",
+        "let's go", "start", "make it", "create", "alright",
+    ]
+
     def handle_message(
         self,
         message: str,
@@ -89,7 +101,7 @@ class ConversationAgent:
         user_role: str,
         project_id: str,
         lang: str = "en",
-    ) -> str:
+    ) -> Dict[str, Any]:
         """Handle a message from the user and return a response.
 
         This is the main entry point for the conversation agent.
@@ -103,14 +115,21 @@ class ConversationAgent:
             lang: ISO 639-1 language code (default "en")
 
         Returns:
-            Response string to send back to the user
+            Dict with:
+                - response (str): Text response to show the user
+                - trigger_generation (bool): True if deliverable generation should start
+                - completeness_pct (int): Current overall completeness
+                - phase (str): Current project phase
         """
+        def _wrap(text: str, trigger: bool = False, pct: int = 0, phase: str = "standardization") -> Dict[str, Any]:
+            return {"response": text, "trigger_generation": trigger, "completeness_pct": pct, "phase": phase}
+
         # Validate inputs to prevent path traversal and injection attacks
         if not validate_project_id(project_id):
-            return f"Error: Invalid project ID '{project_id}'. Project IDs must contain only lowercase letters, numbers, and hyphens."
+            return _wrap(f"Error: Invalid project ID '{project_id}'. Project IDs must contain only lowercase letters, numbers, and hyphens.")
 
         if not validate_user_role(user_role):
-            return f"Error: Invalid user role '{user_role}'. Valid roles are: process_owner, business_analyst, sme, developer."
+            return _wrap(f"Error: Invalid user role '{user_role}'. Valid roles are: process_owner, business_analyst, sme, developer.")
 
         # SECURITY: Check for prompt injection (skip for initial greeting)
         if message.strip() != "__START__":
@@ -138,7 +157,7 @@ class ConversationAgent:
 
             # Block critical threats
             if security_check.risk_level == "critical":
-                return (
+                return _wrap(
                     "I detected a potential security issue with your message. "
                     "Please rephrase your question without special instructions or commands. "
                     "If you believe this is an error, please contact support."
@@ -167,7 +186,11 @@ class ConversationAgent:
         # Step 3: Get FRESH gap brief (now includes any newly extracted facts)
         gap_brief = self.gap_analyzer.analyze_project(project_id)
         if gap_brief.get("status") != "success":
-            return "Error loading project gaps. Please ensure the project exists and has a knowledge base."
+            return _wrap("Error loading project gaps. Please ensure the project exists and has a knowledge base.")
+
+        # Extract completeness and phase for generation trigger logic
+        overall_pct = gap_brief.get("overall_completeness_pct", gap_brief.get("overall_completeness", 0))
+        phase = gap_brief.get("phase", "standardization")
 
         # Step 4: Generate response based on UPDATED gaps
         # Check if this is an initial greeting request
@@ -189,7 +212,13 @@ class ConversationAgent:
                 lang=lang,
             )
 
-        # Step 5: Log conversation turn
+        # Step 5: Check if we should trigger deliverable generation
+        trigger = (
+            message.strip() != "__START__"
+            and self._is_user_confirming_generation(message, overall_pct)
+        )
+
+        # Step 6: Log conversation turn
         if message.strip() != "__START__":
             self._log_conversation(
                 project_id=project_id,
@@ -199,7 +228,7 @@ class ConversationAgent:
                 agent_response=response,
             )
 
-        return response
+        return _wrap(response, trigger=trigger, pct=overall_pct, phase=phase)
 
     def _generate_response(
         self,
@@ -425,6 +454,7 @@ Now write a similar greeting for this user and project. Keep it under 60 words.
     ) -> str:
         """Build a prompt that guides the LLM on how to respond."""
         deliverable_gaps = gap_brief.get("deliverable_gaps", [])
+        overall_pct = gap_brief.get("overall_completeness_pct", gap_brief.get("overall_completeness", 0))
 
         # Find the most important gap to focus on (lowest completeness first)
         focus_gap = None
@@ -435,6 +465,22 @@ Now write a similar greeting for this user and project. Keep it under 60 words.
 
         role = role_config.get("vocabulary", "technical")
         depth = role_config.get("depth", "tactical")
+
+        # Build readiness block for high-completeness scenarios
+        if overall_pct >= self.GENERATION_THRESHOLD:
+            readiness_block = f"""
+🎯 HIGH COMPLETENESS ({overall_pct}%) — WRAP-UP MODE:
+We have enough information to generate deliverables. DO NOT ask more questions.
+Instead:
+1. Briefly summarize key facts gathered (2-3 bullet points)
+2. Tell the user we're at {overall_pct}% completeness — enough to generate deliverables
+3. Ask: "Shall I generate your deliverables now, or is there anything else you'd like to add?"
+If the user just confirmed or said "yes"/"sure"/"nope"/"that's it", respond:
+"Generating your deliverables now..."
+DO NOT ask about tools, visualization, formatting, or other implementation details — those are already configured.
+"""
+        else:
+            readiness_block = ""
 
         # Build context about what's missing
         if focus_gap:
@@ -465,7 +511,7 @@ USER'S CURRENT MESSAGE:
 
 WHAT WE'RE WORKING ON:
 {gap_context}
-
+{readiness_block}
 🚨 ABSOLUTE RULE: USE EXISTING KNOWLEDGE 🚨
 - You MUST reference the KNOWN FACTS above when relevant
 - NEVER ask for information that already appears in KNOWN FACTS or conversation history
@@ -538,6 +584,19 @@ Now respond to the user's message following these rules. REMEMBER:
 
         text = text.strip()
         return text
+
+    def _is_user_confirming_generation(self, message: str, overall_pct: int) -> bool:
+        """Check if user is giving a short confirmatory reply when completeness is high.
+
+        Only returns True when overall completeness >= GENERATION_THRESHOLD
+        AND the message is a brief affirmative (≤ 8 words).
+        """
+        if overall_pct < self.GENERATION_THRESHOLD:
+            return False
+        cleaned = message.strip().lower().rstrip("!.,;:")
+        if len(cleaned.split()) > 8:
+            return False
+        return any(pattern in cleaned for pattern in self.CONFIRMATION_PATTERNS)
 
     def _log_conversation(
         self,
@@ -746,14 +805,16 @@ Extract facts from the user message now:"""
 if __name__ == "__main__":
     # Quick test: simulate a conversation turn
     ca = ConversationAgent()
-    response = ca.handle_message(
+    result = ca.handle_message(
         message="Our invoice process handles about 600 invoices a day.",
         user_id="test@example.com",
         user_role="sme",
         project_id="test-project",
     )
-    print(f"Agent response:\n{response}")
-    
+    print(f"Agent response:\n{result['response']}")
+    print(f"Trigger generation: {result['trigger_generation']}")
+    print(f"Completeness: {result['completeness_pct']}%")
+
     # Check session history
     history = ca.get_session_history("test-project")
     print(f"\nSession turns: {history.get('count', 0)}")

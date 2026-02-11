@@ -144,6 +144,9 @@ class GapAnalyzer:
             "overall_completeness_pct": self._calculate_overall_completeness(
                 deliverable_gaps
             ),
+            "overall_completeness": self._calculate_overall_completeness(
+                deliverable_gaps
+            ),
             "recommendations": recommendations,
             "next_steps": self._recommend_next_steps(deliverable_gaps),
         }

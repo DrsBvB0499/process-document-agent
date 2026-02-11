@@ -388,12 +388,15 @@ def api_send_message(project_id: str):
             return jsonify({'error': 'message is required'}), 400
 
         lang = get_language_from_session(session)
-        response = ca.handle_message(message, user_id, user_role, project_id, lang=lang)
+        result = ca.handle_message(message, user_id, user_role, project_id, lang=lang)
 
         return jsonify({
-            'response': response,
+            'response': result['response'],
             'user_message': message,
-            'timestamp': datetime.utcnow().isoformat() + 'Z'
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'trigger_generation': result.get('trigger_generation', False),
+            'completeness_pct': result.get('completeness_pct', 0),
+            'phase': result.get('phase', 'standardization'),
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -100,6 +100,44 @@ const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message-input');
 const userRoleSelect = document.getElementById('user-role');
 
+// Phase-to-API-endpoint mapping for deliverable generation
+const PHASE_ENDPOINTS = {
+    'standardization': `/api/projects/${PROJECT_ID}/generate`,
+    'optimization': `/api/projects/${PROJECT_ID}/generate-optimization`,
+    'digitization': `/api/projects/${PROJECT_ID}/generate-digitization`,
+    'automation': `/api/projects/${PROJECT_ID}/generate-automation`,
+    'autonomization': `/api/projects/${PROJECT_ID}/generate-autonomization`,
+};
+
+async function triggerGeneration(phase) {
+    const endpoint = PHASE_ENDPOINTS[phase];
+    if (!endpoint) {
+        addMessage('Error: Unknown phase for generation.', false);
+        return;
+    }
+
+    addMessage('⏳ Generating deliverables... This may take 1-2 minutes.', false);
+
+    try {
+        const response = await fetch(endpoint, { method: 'POST' });
+        const data = await response.json();
+
+        if (response.ok) {
+            const fileCount = Object.keys(data.files_saved || {}).length;
+            const completeness = data.overall_completeness || 0;
+            addMessage(
+                `✅ ${fileCount} deliverables generated (${completeness}% complete). ` +
+                `<a href="/project/${PROJECT_ID}/deliverables" style="text-decoration:underline">View deliverables →</a>`,
+                false
+            );
+        } else {
+            addMessage(`❌ Generation failed: ${data.error || 'Unknown error'}`, false);
+        }
+    } catch (error) {
+        addMessage(`❌ Generation error: ${error.message}`, false);
+    }
+}
+
 // Auto-scroll to bottom
 function scrollToBottom() {
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -180,6 +218,11 @@ chatForm.addEventListener('submit', async function(e) {
 
         if (response.ok) {
             addMessage(data.response, false);
+
+            // Auto-trigger deliverable generation when agent signals readiness
+            if (data.trigger_generation && data.phase) {
+                triggerGeneration(data.phase);
+            }
         } else {
             addMessage(`Error: ${data.error}`, false);
         }
