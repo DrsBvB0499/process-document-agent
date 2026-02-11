@@ -11,13 +11,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
-from flask import Flask, render_template, request, jsonify, send_file, session
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.utils import secure_filename
 
 # Add parent directory to path to import agents
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from web.i18n import t as translate, get_language_from_session, SUPPORTED_LANGUAGES
 
 from agent.project_manager import ProjectManager
 from agent.knowledge_processor import KnowledgeProcessor
@@ -61,6 +63,27 @@ ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.txt', '.csv', '.json', '.png', '.jpg', 
 def allowed_file(filename: str) -> bool:
     """Check if file extension is allowed."""
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
+
+
+# ==================== I18N ====================
+
+@app.context_processor
+def inject_i18n():
+    """Inject translation function and current language into all templates."""
+    lang = get_language_from_session(session)
+    return {
+        "t": lambda key, **kw: translate(key, lang=lang, **kw),
+        "current_lang": lang,
+        "supported_languages": SUPPORTED_LANGUAGES,
+    }
+
+
+@app.route('/set-language/<lang>')
+def set_language(lang: str):
+    """Set user language preference and redirect back."""
+    if lang in SUPPORTED_LANGUAGES:
+        session['lang'] = lang
+    return redirect(request.referrer or url_for('index'))
 
 
 # ==================== WEB PAGES ====================
@@ -202,7 +225,7 @@ def view_deliverables(project_id: str):
         if not project:
             return render_template('error.html', message=f"Project '{project_id}' not found"), 404
 
-        # Scan deliverables directory
+        # Scan deliverables directory (supports lang subdirs and legacy flat layout)
         deliverables_dir = pm.config.projects_root / project_id / "deliverables"
         deliverables = []
 
@@ -210,14 +233,28 @@ def view_deliverables(project_id: str):
             for phase_dir in sorted(deliverables_dir.iterdir()):
                 if phase_dir.is_dir():
                     phase_name = phase_dir.name
-                    for file in sorted(phase_dir.glob('*.*')):
-                        deliverables.append({
-                            'phase': phase_name,
-                            'name': file.name,
-                            'path': str(file.relative_to(pm.config.projects_root / project_id)),
-                            'size': file.stat().st_size,
-                            'modified': datetime.fromtimestamp(file.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
-                        })
+                    for item in sorted(phase_dir.iterdir()):
+                        if item.is_dir() and item.name in SUPPORTED_LANGUAGES:
+                            # Language subdirectory (en/, nl/)
+                            for file in sorted(item.glob('*.*')):
+                                deliverables.append({
+                                    'phase': phase_name,
+                                    'lang': item.name,
+                                    'name': file.name,
+                                    'path': str(file.relative_to(pm.config.projects_root / project_id)),
+                                    'size': file.stat().st_size,
+                                    'modified': datetime.fromtimestamp(file.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                                })
+                        elif item.is_file():
+                            # Legacy flat files (backward compat)
+                            deliverables.append({
+                                'phase': phase_name,
+                                'lang': 'en',
+                                'name': item.name,
+                                'path': str(item.relative_to(pm.config.projects_root / project_id)),
+                                'size': item.stat().st_size,
+                                'modified': datetime.fromtimestamp(item.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                            })
 
         return render_template(
             'deliverables.html',
@@ -350,7 +387,8 @@ def api_send_message(project_id: str):
         if not message:
             return jsonify({'error': 'message is required'}), 400
 
-        response = ca.handle_message(message, user_id, user_role, project_id)
+        lang = get_language_from_session(session)
+        response = ca.handle_message(message, user_id, user_role, project_id, lang=lang)
 
         return jsonify({
             'response': response,
@@ -370,7 +408,7 @@ def api_generate_deliverables(project_id: str):
         if not project:
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
 
-        results = sdo.generate_all_deliverables(project_id)
+        results = sdo.generate_all_deliverables(project_id, languages=SUPPORTED_LANGUAGES)
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -385,7 +423,7 @@ def api_generate_optimization_deliverables(project_id: str):
         if not project:
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
 
-        results = odo.generate_all_deliverables(project_id)
+        results = odo.generate_all_deliverables(project_id, languages=SUPPORTED_LANGUAGES)
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -400,7 +438,7 @@ def api_generate_digitization_deliverables(project_id: str):
         if not project:
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
 
-        results = ddo.generate_all_deliverables(project_id)
+        results = ddo.generate_all_deliverables(project_id, languages=SUPPORTED_LANGUAGES)
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -415,7 +453,7 @@ def api_generate_automation_deliverables(project_id: str):
         if not project:
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
 
-        results = ado.generate_all_deliverables(project_id)
+        results = ado.generate_all_deliverables(project_id, languages=SUPPORTED_LANGUAGES)
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -430,7 +468,7 @@ def api_generate_autonomization_deliverables(project_id: str):
         if not project:
             return jsonify({'error': f"Project '{project_id}' not found"}), 404
 
-        results = audo.generate_all_deliverables(project_id)
+        results = audo.generate_all_deliverables(project_id, languages=SUPPORTED_LANGUAGES)
         return jsonify(results)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -451,14 +489,26 @@ def api_list_deliverables(project_id: str):
             for phase_dir in sorted(deliverables_dir.iterdir()):
                 if phase_dir.is_dir():
                     phase_name = phase_dir.name
-                    for file in sorted(phase_dir.glob('*.*')):
-                        deliverables.append({
-                            'phase': phase_name,
-                            'name': file.name,
-                            'path': str(file.relative_to(pm.config.projects_root / project_id)),
-                            'size': file.stat().st_size,
-                            'modified': datetime.fromtimestamp(file.stat().st_mtime).isoformat() + 'Z'
-                        })
+                    for item in sorted(phase_dir.iterdir()):
+                        if item.is_dir() and item.name in SUPPORTED_LANGUAGES:
+                            for file in sorted(item.glob('*.*')):
+                                deliverables.append({
+                                    'phase': phase_name,
+                                    'lang': item.name,
+                                    'name': file.name,
+                                    'path': str(file.relative_to(pm.config.projects_root / project_id)),
+                                    'size': file.stat().st_size,
+                                    'modified': datetime.fromtimestamp(file.stat().st_mtime).isoformat() + 'Z'
+                                })
+                        elif item.is_file():
+                            deliverables.append({
+                                'phase': phase_name,
+                                'lang': 'en',
+                                'name': item.name,
+                                'path': str(item.relative_to(pm.config.projects_root / project_id)),
+                                'size': item.stat().st_size,
+                                'modified': datetime.fromtimestamp(item.stat().st_mtime).isoformat() + 'Z'
+                            })
 
         return jsonify(deliverables)
     except Exception as e:

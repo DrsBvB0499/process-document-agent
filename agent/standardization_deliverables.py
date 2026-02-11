@@ -14,6 +14,7 @@ Author: Intelligent Automation Agent
 """
 
 import json
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -40,15 +41,17 @@ class StandardizationDeliverablesOrchestrator:
       projects/{project_id}/deliverables/1-standardization/
     """
 
+    PHASE_DIR = "1-standardization"
+
     def __init__(self, projects_root: str = "projects"):
         """
         Initialize the orchestrator.
-        
+
         Args:
             projects_root: Root directory where projects are stored
         """
         self.projects_root = Path(projects_root)
-        
+
         # Initialize all generators
         self.sipoc_gen = SIPOCGenerator(projects_root)
         self.process_map_gen = ProcessMapGenerator(projects_root)
@@ -56,7 +59,23 @@ class StandardizationDeliverablesOrchestrator:
         self.flowchart_gen = FlowchartGenerator(projects_root)
         self.exception_gen = ExceptionRegisterGenerator(projects_root)
 
-    def generate_all_deliverables(self, project_id: str) -> Dict[str, Any]:
+    def _copy_to_lang_dirs(self, project_id: str, filename: str, languages: List[str]) -> Dict[str, str]:
+        """Copy a generated deliverable file to each language subdirectory."""
+        base_dir = self.projects_root / project_id / "deliverables" / self.PHASE_DIR
+        source = base_dir / filename
+        paths = {}
+        if not source.exists():
+            return paths
+        for lang in languages:
+            lang_dir = base_dir / lang
+            lang_dir.mkdir(parents=True, exist_ok=True)
+            dest = lang_dir / filename
+            shutil.copy2(str(source), str(dest))
+            paths[lang] = str(dest)
+        source.unlink(missing_ok=True)
+        return paths
+
+    def generate_all_deliverables(self, project_id: str, languages: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Generate all 5 standardization deliverables from knowledge base.
         
@@ -113,7 +132,12 @@ class StandardizationDeliverablesOrchestrator:
             
             if sipoc_result.get("status") == "success":
                 saved_path = self.sipoc_gen.save_sipoc(project_id, sipoc_result)
-                results["files_saved"]["sipoc"] = str(saved_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, Path(saved_path).name, languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"sipoc_{lang}"] = path
+                else:
+                    results["files_saved"]["sipoc"] = str(saved_path)
                 print(f"   ✓ SIPOC completed ({sipoc_result['completeness']['overall']}% complete)")
             else:
                 print(f"   ✗ SIPOC failed: {sipoc_result.get('error')}")
@@ -131,7 +155,12 @@ class StandardizationDeliverablesOrchestrator:
             
             if process_map_result.get("status") == "success":
                 saved_path = self.process_map_gen.save_process_map(project_id, process_map_result)
-                results["files_saved"]["process_map"] = str(saved_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, Path(saved_path).name, languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"process_map_{lang}"] = path
+                else:
+                    results["files_saved"]["process_map"] = str(saved_path)
                 print(f"   ✓ Process Map completed ({process_map_result['completeness']['overall']}% complete)")
             else:
                 print(f"   ✗ Process Map failed: {process_map_result.get('error')}")
@@ -149,7 +178,12 @@ class StandardizationDeliverablesOrchestrator:
             
             if metrics_result.get("status") == "success":
                 saved_path = self.metrics_gen.save_baseline_metrics(project_id, metrics_result)
-                results["files_saved"]["baseline_metrics"] = str(saved_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, Path(saved_path).name, languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"baseline_metrics_{lang}"] = path
+                else:
+                    results["files_saved"]["baseline_metrics"] = str(saved_path)
                 print(f"   ✓ Baseline Metrics completed ({metrics_result['completeness']['overall']}% complete)")
             else:
                 print(f"   ✗ Baseline Metrics failed: {metrics_result.get('error')}")
@@ -166,7 +200,12 @@ class StandardizationDeliverablesOrchestrator:
             
             if flowchart_result.get("status") == "success":
                 saved_path = self.flowchart_gen.save_flowchart(project_id, flowchart_result)
-                results["files_saved"]["flowchart"] = str(saved_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, Path(saved_path).name, languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"flowchart_{lang}"] = path
+                else:
+                    results["files_saved"]["flowchart"] = str(saved_path)
                 nodes = flowchart_result.get("flowchart", {}).get("node_count", 0)
                 connections = flowchart_result.get("flowchart", {}).get("connection_count", 0)
                 print(f"   ✓ Flowchart completed ({nodes} nodes, {connections} connections)")
@@ -186,7 +225,12 @@ class StandardizationDeliverablesOrchestrator:
             
             if exception_result.get("status") == "success":
                 saved_path = self.exception_gen.save_exception_register(project_id, exception_result)
-                results["files_saved"]["exception_register"] = str(saved_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, Path(saved_path).name, languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"exception_register_{lang}"] = path
+                else:
+                    results["files_saved"]["exception_register"] = str(saved_path)
                 exc_count = exception_result.get("exception_register", {}).get("total_exceptions", 0)
                 print(f"   ✓ Exception Register completed ({exc_count} exceptions documented)")
             else:

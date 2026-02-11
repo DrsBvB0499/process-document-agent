@@ -36,6 +36,15 @@ from agent.llm import call_model
 class GateReviewAgent:
     """Evaluates deliverable completeness and readiness for phase transition."""
 
+    # Map phase names to deliverable directory names
+    PHASE_DIRS = {
+        "standardization": "1-standardization",
+        "optimization": "2-optimization",
+        "digitization": "3-digitization",
+        "automation": "4-automation",
+        "autonomization": "5-autonomization",
+    }
+
     # Gate criteria for each phase
     GATE_CRITERIA = {
         "standardization": {
@@ -123,7 +132,12 @@ class GateReviewAgent:
 
         # Load deliverables from project
         project_path = self.projects_root / project_id
-        deliverables_path = project_path / "deliverables" / "1-standardization"
+        phase_dir = self.PHASE_DIRS.get(phase, f"1-{phase}")
+        base_deliverables_path = project_path / "deliverables" / phase_dir
+
+        # Check en/ subdirectory first (new layout), fall back to phase root (legacy)
+        en_path = base_deliverables_path / "en"
+        deliverables_path = en_path if en_path.exists() else base_deliverables_path
 
         if not deliverables_path.exists():
             return {

@@ -79,12 +79,16 @@ class ConversationAgent:
         self.security_checker = HybridSecurityChecker(self.projects_root)
         self.security_logger = SecurityLogger(self.projects_root)
 
+    # Language names for LLM prompt instructions
+    LANG_NAMES = {"en": "English", "nl": "Dutch (Nederlands)"}
+
     def handle_message(
         self,
         message: str,
         user_id: str,
         user_role: str,
         project_id: str,
+        lang: str = "en",
     ) -> str:
         """Handle a message from the user and return a response.
 
@@ -96,6 +100,7 @@ class ConversationAgent:
             user_id: Email or identifier of the user
             user_role: Role of the user (process_owner, sme, etc.)
             project_id: The project being worked on
+            lang: ISO 639-1 language code (default "en")
 
         Returns:
             Response string to send back to the user
@@ -172,6 +177,7 @@ class ConversationAgent:
                 user_role=user_role,
                 gap_brief=gap_brief,
                 project_id=project_id,
+                lang=lang,
             )
         else:
             # Normal conversation flow with fresh gap analysis
@@ -180,6 +186,7 @@ class ConversationAgent:
                 user_role=user_role,
                 gap_brief=gap_brief,
                 project_id=project_id,
+                lang=lang,
             )
 
         # Step 5: Log conversation turn
@@ -200,6 +207,7 @@ class ConversationAgent:
         user_role: str,
         gap_brief: Dict[str, Any],
         project_id: str,
+        lang: str = "en",
     ) -> str:
         """Generate a response guided by gap brief."""
         role_config = self.ROLE_CONFIG.get(user_role, self.ROLE_CONFIG["sme"])
@@ -215,11 +223,18 @@ class ConversationAgent:
             conversation_history=conversation_history,
         )
 
+        # Build language system prompt if not English
+        system_prompt = None
+        if lang != "en":
+            lang_name = self.LANG_NAMES.get(lang, lang)
+            system_prompt = f"IMPORTANT: You MUST respond entirely in {lang_name}. All questions, explanations, and examples must be in {lang_name}."
+
         # Call LLM
         result = call_model(
             project_id=project_id,
             agent="conversation_agent",
             prompt=prompt,
+            system_prompt=system_prompt,
         )
 
         response_text = result.get("text", "I couldn't generate a response.")
@@ -235,6 +250,7 @@ class ConversationAgent:
         user_role: str,
         gap_brief: Dict[str, Any],
         project_id: str,
+        lang: str = "en",
     ) -> str:
         """Generate a personalized initial greeting based on project state."""
         # Load project info
@@ -318,11 +334,18 @@ EXAMPLE (55 words):
 Now write a similar greeting for this user and project. Keep it under 60 words.
 """
 
+        # Build language system prompt if not English
+        system_prompt = None
+        if lang != "en":
+            lang_name = self.LANG_NAMES.get(lang, lang)
+            system_prompt = f"IMPORTANT: You MUST respond entirely in {lang_name}. All questions, explanations, and examples must be in {lang_name}."
+
         # Call LLM to generate greeting
         result = call_model(
             project_id=project_id,
             agent="conversation_agent",
             prompt=greeting_prompt,
+            system_prompt=system_prompt,
         )
 
         greeting = result.get("text", "Hello! Ready to work on this project together?")

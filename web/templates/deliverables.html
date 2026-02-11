@@ -1,19 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Deliverables - {{ project.project_name }}{% endblock %}
+{% block title %}{{ t('deliverables.title') }} - {{ project.project_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>📄 Deliverables</h1>
+        <h1>📄 {{ t('deliverables.title') }}</h1>
         <p class="subtitle">{{ project.project_name }}</p>
     </div>
     <div class="header-actions">
-        <a href="/project/{{ project_id }}" class="btn btn-secondary">← Back to Dashboard</a>
+        <a href="/project/{{ project_id }}" class="btn btn-secondary">← {{ t('deliverables.back') }}</a>
     </div>
 </div>
 
 {% if deliverables %}
+<!-- Language filter -->
+<div class="deliverables-lang-filter">
+    <span>{{ t('deliverables.lang_label') }}</span>
+    <button class="btn btn-sm lang-filter-btn active" data-lang="all">{{ t('deliverables.all_languages') }}</button>
+    {% for lang in supported_languages %}
+    <button class="btn btn-sm lang-filter-btn" data-lang="{{ lang }}">{{ lang|upper }}</button>
+    {% endfor %}
+</div>
+
 <div class="deliverables-section">
     {% set phases = deliverables|groupby('phase') %}
     {% for phase, phase_deliverables in phases %}
@@ -21,7 +30,7 @@
         <h2>{{ phase|replace('-', ' ')|title }}</h2>
         <div class="deliverables-grid">
             {% for deliverable in phase_deliverables %}
-            <div class="deliverable-card">
+            <div class="deliverable-card" data-lang="{{ deliverable.lang }}">
                 <div class="deliverable-icon">
                     {% if deliverable.name.endswith('.json') %}📋
                     {% elif deliverable.name.endswith('.docx') %}📝
@@ -33,13 +42,14 @@
                 <div class="deliverable-info">
                     <h3>{{ deliverable.name }}</h3>
                     <div class="deliverable-meta">
+                        <span class="lang-badge">{{ deliverable.lang|upper }}</span>
                         <span>{{ (deliverable.size / 1024)|round(1) }} KB</span>
                         <span>{{ deliverable.modified }}</span>
                     </div>
                 </div>
                 <div class="deliverable-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="viewDeliverable('{{ deliverable.path }}', '{{ deliverable.name }}')">View</button>
-                    <a href="/api/projects/{{ project_id }}/deliverables/{{ deliverable.path }}" class="btn btn-sm btn-primary" download>Download</a>
+                    <button class="btn btn-sm btn-secondary" onclick="viewDeliverable('{{ deliverable.path }}', '{{ deliverable.name }}')">{{ t('deliverables.view') }}</button>
+                    <a href="/api/projects/{{ project_id }}/deliverables/{{ deliverable.path }}" class="btn btn-sm btn-primary" download>{{ t('deliverables.download') }}</a>
                 </div>
             </div>
             {% endfor %}
@@ -50,9 +60,9 @@
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">📋</div>
-    <h2>No Deliverables Yet</h2>
-    <p>Generate deliverables from the project dashboard to see them here.</p>
-    <a href="/project/{{ project_id }}" class="btn btn-primary">Go to Dashboard</a>
+    <h2>{{ t('deliverables.empty_title') }}</h2>
+    <p>{{ t('deliverables.empty_desc') }}</p>
+    <a href="/project/{{ project_id }}" class="btn btn-primary">{{ t('deliverables.go_dashboard') }}</a>
 </div>
 {% endif %}
 
@@ -60,7 +70,7 @@
 <div id="view-modal" class="modal">
     <div class="modal-content modal-large">
         <span class="close">&times;</span>
-        <h2 id="modal-title">Deliverable</h2>
+        <h2 id="modal-title">{{ t('deliverables.modal_title') }}</h2>
         <div id="modal-body"></div>
     </div>
 </div>
@@ -70,6 +80,11 @@
 {% block extra_js %}
 <script>
 const PROJECT_ID = "{{ project_id }}";
+const DEL_T = {
+    loading: "{{ t('deliverables.loading') }}",
+    no_preview: "{{ t('deliverables.no_preview') }}",
+    download: "{{ t('deliverables.download') }}"
+};
 const modal = document.getElementById('view-modal');
 const closeBtn = modal.querySelector('.close');
 
@@ -88,7 +103,7 @@ async function viewDeliverable(path, name) {
     const modalBody = document.getElementById('modal-body');
 
     modalTitle.textContent = name;
-    modalBody.innerHTML = '<div class="loading">Loading...</div>';
+    modalBody.innerHTML = `<div class="loading">${DEL_T.loading}</div>`;
     modal.style.display = 'block';
 
     try {
@@ -104,7 +119,7 @@ async function viewDeliverable(path, name) {
             modalBody.innerHTML = `<pre class="json-viewer">${JSON.stringify(data, null, 2)}</pre>`;
         }
         // Check if it's text
-        else if (name.endsWith('.txt') || name.endsWith('.md')) {
+        else if (name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.mmd')) {
             const text = await response.text();
             modalBody.innerHTML = `<pre class="text-viewer">${escapeHtml(text)}</pre>`;
         }
@@ -112,13 +127,13 @@ async function viewDeliverable(path, name) {
         else {
             modalBody.innerHTML = `
                 <div class="file-preview">
-                    <p>This file type cannot be previewed in the browser.</p>
-                    <a href="/api/projects/${PROJECT_ID}/deliverables/${path}" class="btn btn-primary" download>Download ${name}</a>
+                    <p>${DEL_T.no_preview}</p>
+                    <a href="/api/projects/${PROJECT_ID}/deliverables/${path}" class="btn btn-primary" download>${DEL_T.download} ${name}</a>
                 </div>
             `;
         }
     } catch (error) {
-        modalBody.innerHTML = `<div class="alert alert-error">Error loading deliverable: ${error.message}</div>`;
+        modalBody.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
     }
 }
 
@@ -127,5 +142,21 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Language filter
+document.querySelectorAll('.lang-filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.lang-filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        const lang = this.dataset.lang;
+        document.querySelectorAll('.deliverable-card').forEach(card => {
+            if (lang === 'all' || card.dataset.lang === lang) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+});
 </script>
 {% endblock %}

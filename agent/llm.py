@@ -93,6 +93,7 @@ def call_model(
     projects_root: Optional[Path] = None,
     escalate_on_low_confidence: bool = True,
     preferred_model: Optional[str] = None,
+    system_prompt: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Call a model according to the model map and log cost.
 
@@ -161,9 +162,13 @@ def call_model(
             from openai import OpenAI
 
             client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
             resp = client.chat.completions.create(
                 model=model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
                 temperature=float(os.environ.get("OPENAI_TEMPERATURE", "0.2")),
             )
             text = resp.choices[0].message.content
@@ -192,11 +197,14 @@ def call_model(
 
             client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
             # Use modern Messages API instead of deprecated Completions API
-            resp = client.messages.create(
-                model=model,
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            create_kwargs = {
+                "model": model,
+                "max_tokens": 1024,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if system_prompt:
+                create_kwargs["system"] = system_prompt
+            resp = client.messages.create(**create_kwargs)
             text = resp.content[0].text if resp.content else ""
             # Modern API provides usage information
             in_toks = resp.usage.input_tokens if resp.usage else 0
@@ -230,7 +238,7 @@ def call_model(
         escalated = True
         premium = os.environ.get("MODEL_FALLBACK", "gpt-4o")
         # recursive call but avoid infinite recursion by disabling escalation
-        premium_result = call_model(project_id, agent, prompt, projects_root, escalate_on_low_confidence=False, preferred_model=premium)
+        premium_result = call_model(project_id, agent, prompt, projects_root, escalate_on_low_confidence=False, preferred_model=premium, system_prompt=system_prompt)
         # merge results: use premium result but log that escalation happened
         premium_result["escalated"] = True
         try:

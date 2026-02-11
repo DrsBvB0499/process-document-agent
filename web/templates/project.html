@@ -6,21 +6,21 @@
 <div class="page-header">
     <div>
         <h1>{{ project.project_name }}</h1>
-        <p class="subtitle">Project ID: {{ project_id }}</p>
+        <p class="subtitle">{{ t('project.id_label') }} {{ project_id }}</p>
         {% if project.description %}
         <p class="project-description">{{ project.description }}</p>
         {% endif %}
     </div>
     <div class="header-actions">
-        <a href="/project/{{ project_id }}/chat" class="btn btn-primary">💬 Chat</a>
-        <a href="/project/{{ project_id }}/deliverables" class="btn btn-secondary">📄 Deliverables</a>
+        <a href="/project/{{ project_id }}/chat" class="btn btn-primary">💬 {{ t('project.chat') }}</a>
+        <a href="/project/{{ project_id }}/deliverables" class="btn btn-secondary">📄 {{ t('project.deliverables_btn') }}</a>
     </div>
 </div>
 
 <!-- Warning if no knowledge base exists -->
 {% if uploaded_files > 0 and kb_facts == 0 %}
 <div class="alert alert-warning">
-    ⚠️ <strong>Files uploaded but not processed!</strong> Click "Process Files" below to extract information before chatting with the agent.
+    ⚠️ <strong>{{ t('project.files_not_processed') }}</strong> {{ t('project.files_not_processed_hint') }}
 </div>
 {% endif %}
 
@@ -29,28 +29,28 @@
     <div class="stat-card">
         <div class="stat-icon">📚</div>
         <div class="stat-content">
-            <div class="stat-label">Knowledge Base</div>
-            <div class="stat-value">{{ kb_facts }} facts</div>
+            <div class="stat-label">{{ t('project.knowledge_base') }}</div>
+            <div class="stat-value">{{ kb_facts }} {{ t('project.facts_unit') }}</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-icon">📁</div>
         <div class="stat-content">
-            <div class="stat-label">Uploaded Files</div>
-            <div class="stat-value">{{ uploaded_files }} files</div>
+            <div class="stat-label">{{ t('project.uploaded_files') }}</div>
+            <div class="stat-value">{{ uploaded_files }} {{ t('project.files_unit') }}</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-icon">🤖</div>
         <div class="stat-content">
-            <div class="stat-label">API Calls</div>
-            <div class="stat-value">{{ api_calls }} calls</div>
+            <div class="stat-label">{{ t('project.api_calls') }}</div>
+            <div class="stat-value">{{ api_calls }} {{ t('project.calls_unit') }}</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-icon">💰</div>
         <div class="stat-content">
-            <div class="stat-label">Total Cost</div>
+            <div class="stat-label">{{ t('project.total_cost') }}</div>
             <div class="stat-value">${{ "%.4f"|format(total_cost) }}</div>
         </div>
     </div>
@@ -58,7 +58,7 @@
 
 <!-- Phase Progress -->
 <div class="section">
-    <h2>📊 Phase Progress</h2>
+    <h2>📊 {{ t('project.phase_progress') }}</h2>
     <div class="phase-timeline">
         {% for phase_name, phase_data in project.phases.items() %}
         <div class="phase-item {% if phase_name == project.current_phase %}active{% elif phase_data.status == 'complete' %}completed{% endif %}">
@@ -67,11 +67,11 @@
                 <div class="phase-name">{{ phase_name|title }}</div>
                 <div class="phase-status">
                     {% if phase_data.status == 'complete' %}
-                    <span class="status-badge status-completed">✓ Completed</span>
+                    <span class="status-badge status-completed">✓ {{ t('project.completed') }}</span>
                     {% elif phase_name == project.current_phase %}
-                    <span class="status-badge status-active">→ In Progress</span>
+                    <span class="status-badge status-active">→ {{ t('project.in_progress') }}</span>
                     {% else %}
-                    <span class="status-badge status-locked">🔒 Locked</span>
+                    <span class="status-badge status-locked">🔒 {{ t('project.locked') }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -80,14 +80,14 @@
     </div>
 </div>
 
-<!-- Knowledge & Progress (NEW!) -->
+<!-- Knowledge & Progress -->
 {% if kb_facts > 0 or gap_data %}
 <div class="section">
-    <h2>📖 Knowledge & Progress</h2>
+    <h2>📖 {{ t('project.knowledge_progress') }}</h2>
 
     {% if kb_breakdown %}
     <div class="subsection">
-        <h3>What the Agent Has Learned</h3>
+        <h3>{{ t('project.what_learned') }}</h3>
         <div class="knowledge-grid">
             {% for category, facts in kb_breakdown.items() %}
             <div class="knowledge-card">
@@ -100,7 +100,7 @@
                     <li>{{ fact }}</li>
                     {% endfor %}
                     {% if facts|length > 5 %}
-                    <li class="fact-more">... and {{ facts|length - 5 }} more</li>
+                    <li class="fact-more">{{ t('project.and_more', count=facts|length - 5) }}</li>
                     {% endif %}
                 </ul>
             </div>
@@ -111,10 +111,10 @@
 
     {% if gap_data %}
     <div class="subsection">
-        <h3>Deliverable Completeness</h3>
+        <h3>{{ t('project.deliverable_completeness') }}</h3>
         <div class="completeness-summary">
             <div class="overall-progress">
-                <div class="progress-label">Overall Progress</div>
+                <div class="progress-label">{{ t('project.overall_progress') }}</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: {{ gap_data.overall_completeness }}%"></div>
                 </div>
@@ -134,13 +134,13 @@
 
                 {% if gap.missing_fields %}
                 <div class="gap-missing">
-                    <div class="gap-section-title">❌ Still Missing:</div>
+                    <div class="gap-section-title">❌ {{ t('project.still_missing') }}</div>
                     <ul class="gap-list">
                         {% for field in gap.missing_fields[:3] %}
                         <li>{{ field|replace('_', ' ')|title }}</li>
                         {% endfor %}
                         {% if gap.missing_fields|length > 3 %}
-                        <li>... and {{ gap.missing_fields|length - 3 }} more</li>
+                        <li>{{ t('project.and_more', count=gap.missing_fields|length - 3) }}</li>
                         {% endif %}
                     </ul>
                 </div>
@@ -148,13 +148,13 @@
 
                 {% if gap.present_fields %}
                 <div class="gap-complete">
-                    <div class="gap-section-title">✅ Already Have:</div>
+                    <div class="gap-section-title">✅ {{ t('project.already_have') }}</div>
                     <ul class="gap-list">
                         {% for field in gap.present_fields[:3] %}
                         <li>{{ field|replace('_', ' ')|title }}</li>
                         {% endfor %}
                         {% if gap.present_fields|length > 3 %}
-                        <li>... and {{ gap.present_fields|length - 3 }} more</li>
+                        <li>{{ t('project.and_more', count=gap.present_fields|length - 3) }}</li>
                         {% endif %}
                     </ul>
                 </div>
@@ -169,60 +169,60 @@
 
 <!-- Actions -->
 <div class="section">
-    <h2>🚀 Actions</h2>
+    <h2>🚀 {{ t('project.actions') }}</h2>
     <div class="actions-grid">
         <!-- Upload Files -->
         <div class="action-card">
-            <h3>📤 Upload Files</h3>
-            <p>Upload process documentation, SOPs, or other materials</p>
+            <h3>📤 {{ t('project.upload_title') }}</h3>
+            <p>{{ t('project.upload_desc') }}</p>
             <form id="upload-form" enctype="multipart/form-data">
                 <div class="form-group">
                     <input type="file" id="file-input" name="file" accept=".pdf,.docx,.txt,.csv,.json,.png,.jpg,.jpeg" multiple>
-                    <label for="file-input" class="file-label">Choose files...</label>
+                    <label for="file-input" class="file-label">{{ t('project.choose_files') }}</label>
                     <div id="file-list"></div>
                 </div>
-                <button type="submit" class="btn btn-primary">Upload</button>
+                <button type="submit" class="btn btn-primary">{{ t('project.upload_btn') }}</button>
             </form>
             <div id="upload-status"></div>
         </div>
 
         <!-- Process Knowledge -->
         <div class="action-card">
-            <h3>🧠 Process Knowledge</h3>
-            <p>Extract structured information from uploaded files</p>
-            <button id="process-btn" class="btn btn-primary">Process Files</button>
+            <h3>🧠 {{ t('project.process_title') }}</h3>
+            <p>{{ t('project.process_desc') }}</p>
+            <button id="process-btn" class="btn btn-primary">{{ t('project.process_btn') }}</button>
             <div id="process-status"></div>
         </div>
 
         <!-- Analyze Gaps -->
         <div class="action-card">
-            <h3>🔍 Analyze Gaps</h3>
-            <p>Identify missing information for deliverables</p>
-            <button id="analyze-btn" class="btn btn-primary">Run Gap Analysis</button>
+            <h3>🔍 {{ t('project.analyze_title') }}</h3>
+            <p>{{ t('project.analyze_desc') }}</p>
+            <button id="analyze-btn" class="btn btn-primary">{{ t('project.analyze_btn') }}</button>
             <div id="analyze-status"></div>
         </div>
 
         <!-- Generate Deliverables -->
         <div class="action-card">
-            <h3>📋 Generate Deliverables</h3>
-            <p>Create SIPOC, Process Map, Metrics, and more</p>
-            <button id="generate-btn" class="btn btn-primary">Generate All</button>
+            <h3>📋 {{ t('project.generate_title') }}</h3>
+            <p>{{ t('project.generate_desc') }}</p>
+            <button id="generate-btn" class="btn btn-primary">{{ t('project.generate_btn') }}</button>
             <div id="generate-status"></div>
         </div>
 
         <!-- Gate Review -->
         <div class="action-card">
-            <h3>✅ Gate Review</h3>
-            <p>Evaluate deliverables and unlock next phase</p>
-            <button id="gate-review-btn" class="btn btn-primary">Submit for Gate Review</button>
+            <h3>✅ {{ t('project.gate_title') }}</h3>
+            <p>{{ t('project.gate_desc') }}</p>
+            <button id="gate-review-btn" class="btn btn-primary">{{ t('project.gate_btn') }}</button>
             <div id="gate-review-status"></div>
         </div>
 
         <!-- Generate Optimization Deliverables -->
         <div class="action-card">
-            <h3>🎯 Optimization Phase</h3>
-            <p>Generate Value Stream Map, Waste Analysis, Quick Wins, KPI Dashboard</p>
-            <button id="generate-optimization-btn" class="btn btn-primary">Generate Optimization Deliverables</button>
+            <h3>🎯 {{ t('project.optimization_title') }}</h3>
+            <p>{{ t('project.optimization_desc') }}</p>
+            <button id="generate-optimization-btn" class="btn btn-primary">{{ t('project.optimization_btn') }}</button>
             <div id="optimization-status"></div>
         </div>
     </div>
@@ -230,7 +230,7 @@
 
 <!-- Current Phase Deliverables -->
 <div class="section">
-    <h2>📄 Current Phase Deliverables</h2>
+    <h2>📄 {{ t('project.current_deliverables') }}</h2>
     {% set current_phase_data = project.phases[project.current_phase] %}
     <div class="deliverables-list">
         {% for deliverable_name, deliverable in current_phase_data.deliverables.items() %}
@@ -239,7 +239,7 @@
             <div class="deliverable-info">
                 <div class="deliverable-name">{{ deliverable_name|replace('_', ' ')|title }}</div>
                 <div class="deliverable-meta">
-                    <span class="deliverable-status">{{ 'Completed' if deliverable.completed else 'Pending' }}</span>
+                    <span class="deliverable-status">{{ t('project.status_completed') if deliverable.completed else t('project.status_pending') }}</span>
                     {% if deliverable.completed_at %}
                     <span class="deliverable-date">• {{ deliverable.completed_at.split('T')[0] }}</span>
                     {% endif %}
@@ -255,6 +255,38 @@
 {% block extra_js %}
 <script>
 const PROJECT_ID = "{{ project_id }}";
+const T = {
+    select_file: "{{ t('js.select_file') }}",
+    uploading: "{{ t('js.uploading') }}",
+    uploaded: "{{ t('js.uploaded') }}",
+    processing: "{{ t('js.processing') }}",
+    extracting: "{{ t('js.extracting') }}",
+    processed_success: "{{ t('js.processed_success') }}",
+    process_btn: "{{ t('project.process_btn') }}",
+    analyzing: "{{ t('js.analyzing') }}",
+    running_analysis: "{{ t('js.running_analysis') }}",
+    analysis_complete: "{{ t('js.analysis_complete') }}",
+    analyze_btn: "{{ t('project.analyze_btn') }}",
+    confirm_generate: "{{ t('js.confirm_generate') }}",
+    generating: "{{ t('js.generating') }}",
+    generating_info: "{{ t('js.generating_info') }}",
+    generated_success: "{{ t('js.generated_success') }}",
+    generate_btn: "{{ t('project.generate_btn') }}",
+    confirm_gate: "{{ t('js.confirm_gate') }}",
+    evaluating: "{{ t('js.evaluating') }}",
+    evaluating_info: "{{ t('js.evaluating_info') }}",
+    gate_passed: "{{ t('js.gate_passed') }}",
+    gate_conditional: "{{ t('js.gate_conditional') }}",
+    gate_failed: "{{ t('js.gate_failed') }}",
+    overall_score: "{{ t('js.overall_score') }}",
+    threshold: "{{ t('js.threshold') }}",
+    details: "{{ t('js.details') }}",
+    gate_btn: "{{ t('project.gate_btn') }}",
+    confirm_optimization: "{{ t('js.confirm_optimization') }}",
+    generating_optimization: "{{ t('js.generating_optimization') }}",
+    optimization_success: "{{ t('js.optimization_success') }}",
+    optimization_btn: "{{ t('project.optimization_btn') }}"
+};
 
 // File upload handling
 document.getElementById('file-input').addEventListener('change', function(e) {
@@ -274,11 +306,11 @@ document.getElementById('upload-form').addEventListener('submit', async function
     const statusDiv = document.getElementById('upload-status');
 
     if (!fileInput.files.length) {
-        statusDiv.innerHTML = '<div class="alert alert-error">Please select at least one file</div>';
+        statusDiv.innerHTML = `<div class="alert alert-error">${T.select_file}</div>`;
         return;
     }
 
-    statusDiv.innerHTML = '<div class="alert alert-info">Uploading...</div>';
+    statusDiv.innerHTML = `<div class="alert alert-info">${T.uploading}</div>`;
 
     for (const file of fileInput.files) {
         const formData = new FormData();
@@ -292,7 +324,7 @@ document.getElementById('upload-form').addEventListener('submit', async function
             const data = await response.json();
 
             if (response.ok) {
-                statusDiv.innerHTML += `<div class="alert alert-success">✓ ${file.name} uploaded</div>`;
+                statusDiv.innerHTML += `<div class="alert alert-success">✓ ${file.name} ${T.uploaded}</div>`;
             } else {
                 statusDiv.innerHTML += `<div class="alert alert-error">✗ ${file.name}: ${data.error}</div>`;
             }
@@ -312,8 +344,8 @@ document.getElementById('process-btn').addEventListener('click', async function(
     const statusDiv = document.getElementById('process-status');
 
     btn.disabled = true;
-    btn.textContent = 'Processing...';
-    statusDiv.innerHTML = '<div class="alert alert-info">Extracting knowledge from files...</div>';
+    btn.textContent = T.processing;
+    statusDiv.innerHTML = `<div class="alert alert-info">${T.extracting}</div>`;
 
     try {
         const response = await fetch(`/api/projects/${PROJECT_ID}/process`, {
@@ -322,7 +354,8 @@ document.getElementById('process-btn').addEventListener('click', async function(
         const data = await response.json();
 
         if (response.ok) {
-            statusDiv.innerHTML = `<div class="alert alert-success">✓ Processed successfully! Extracted ${data.knowledge_base?.facts?.length || 0} facts</div>`;
+            const count = data.knowledge_base?.facts?.length || 0;
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ ${T.processed_success.replace('{count}', count)}</div>`;
             setTimeout(() => location.reload(), 2000);
         } else {
             statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
@@ -331,7 +364,7 @@ document.getElementById('process-btn').addEventListener('click', async function(
         statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Process Files';
+        btn.textContent = T.process_btn;
     }
 });
 
@@ -341,8 +374,8 @@ document.getElementById('analyze-btn').addEventListener('click', async function(
     const statusDiv = document.getElementById('analyze-status');
 
     btn.disabled = true;
-    btn.textContent = 'Analyzing...';
-    statusDiv.innerHTML = '<div class="alert alert-info">Running gap analysis...</div>';
+    btn.textContent = T.analyzing;
+    statusDiv.innerHTML = `<div class="alert alert-info">${T.running_analysis}</div>`;
 
     try {
         const response = await fetch(`/api/projects/${PROJECT_ID}/analyze`, {
@@ -351,9 +384,9 @@ document.getElementById('analyze-btn').addEventListener('click', async function(
         const data = await response.json();
 
         if (response.ok) {
-            const completeness = data.current_phase?.completeness_percent || 0;
-            const missing = data.current_phase?.missing_count || 0;
-            statusDiv.innerHTML = `<div class="alert alert-success">✓ Analysis complete! Completeness: ${completeness}% (${missing} gaps identified)</div>`;
+            const pct = data.current_phase?.completeness_percent || 0;
+            const count = data.current_phase?.missing_count || 0;
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ ${T.analysis_complete.replace('{pct}', pct).replace('{count}', count)}</div>`;
         } else {
             statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
         }
@@ -361,7 +394,7 @@ document.getElementById('analyze-btn').addEventListener('click', async function(
         statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Run Gap Analysis';
+        btn.textContent = T.analyze_btn;
     }
 });
 
@@ -370,13 +403,13 @@ document.getElementById('generate-btn').addEventListener('click', async function
     const btn = this;
     const statusDiv = document.getElementById('generate-status');
 
-    if (!confirm('This will generate all deliverables for the Standardization phase. Continue?')) {
+    if (!confirm(T.confirm_generate)) {
         return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Generating...';
-    statusDiv.innerHTML = '<div class="alert alert-info">Generating deliverables... This may take a minute.</div>';
+    btn.textContent = T.generating;
+    statusDiv.innerHTML = `<div class="alert alert-info">${T.generating_info}</div>`;
 
     try {
         const response = await fetch(`/api/projects/${PROJECT_ID}/generate`, {
@@ -385,8 +418,8 @@ document.getElementById('generate-btn').addEventListener('click', async function
         const data = await response.json();
 
         if (response.ok) {
-            const successCount = Object.values(data).filter(v => v.status === 'success').length;
-            statusDiv.innerHTML = `<div class="alert alert-success">✓ Generated ${successCount} deliverables successfully!</div>`;
+            const count = Object.values(data).filter(v => v.status === 'success').length;
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ ${T.generated_success.replace('{count}', count)}</div>`;
             setTimeout(() => location.reload(), 2000);
         } else {
             statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
@@ -395,7 +428,7 @@ document.getElementById('generate-btn').addEventListener('click', async function
         statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Generate All';
+        btn.textContent = T.generate_btn;
     }
 });
 
@@ -404,13 +437,13 @@ document.getElementById('gate-review-btn').addEventListener('click', async funct
     const btn = this;
     const statusDiv = document.getElementById('gate-review-status');
 
-    if (!confirm('This will evaluate all deliverables for the Standardization phase gate review. Continue?')) {
+    if (!confirm(T.confirm_gate)) {
         return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Evaluating...';
-    statusDiv.innerHTML = '<div class="alert alert-info">Evaluating deliverables...</div>';
+    btn.textContent = T.evaluating;
+    statusDiv.innerHTML = `<div class="alert alert-info">${T.evaluating_info}</div>`;
 
     try {
         const response = await fetch(`/api/projects/${PROJECT_ID}/gate-review`, {
@@ -425,39 +458,37 @@ document.getElementById('gate-review-btn').addEventListener('click', async funct
         if (response.ok) {
             const decision = data.decision;
             const score = data.score;
-            const threshold = data.threshold;
+            const thresh = data.threshold;
+            const feedbackHtml = (data.feedback || []).map(item => `<li>${item}</li>`).join('');
 
             if (decision === 'PASS') {
-                const feedbackHtml = (data.feedback || []).map(item => `<li>${item}</li>`).join('');
                 statusDiv.innerHTML = `
                     <div class="alert alert-success">
-                        <strong>✅ GATE PASSED!</strong><br>
-                        Overall Score: ${score}% (threshold: ${threshold}%)<br>
+                        <strong>✅ ${T.gate_passed}</strong><br>
+                        ${T.overall_score}: ${score}% (${T.threshold}: ${thresh}%)<br>
                         ${data.summary || ''}<br><br>
-                        <strong>Details:</strong>
+                        <strong>${T.details}:</strong>
                         <ul>${feedbackHtml}</ul>
                     </div>
                 `;
                 setTimeout(() => location.reload(), 3000);
             } else if (decision === 'CONDITIONAL_PASS') {
-                const feedbackHtml = (data.feedback || []).map(item => `<li>${item}</li>`).join('');
                 statusDiv.innerHTML = `
                     <div class="alert alert-warning">
-                        <strong>⚠️ CONDITIONAL PASS</strong><br>
-                        Overall Score: ${score}% (threshold: ${threshold}%)<br>
+                        <strong>⚠️ ${T.gate_conditional}</strong><br>
+                        ${T.overall_score}: ${score}% (${T.threshold}: ${thresh}%)<br>
                         ${data.summary || ''}<br><br>
-                        <strong>Details:</strong>
+                        <strong>${T.details}:</strong>
                         <ul>${feedbackHtml}</ul>
                     </div>
                 `;
             } else {
-                const feedbackHtml = (data.feedback || []).map(item => `<li>${item}</li>`).join('');
                 statusDiv.innerHTML = `
                     <div class="alert alert-error">
-                        <strong>❌ GATE FAILED</strong><br>
-                        Overall Score: ${score}% (threshold: ${threshold}%)<br>
+                        <strong>❌ ${T.gate_failed}</strong><br>
+                        ${T.overall_score}: ${score}% (${T.threshold}: ${thresh}%)<br>
                         ${data.summary || ''}<br><br>
-                        <strong>Details:</strong>
+                        <strong>${T.details}:</strong>
                         <ul>${feedbackHtml}</ul>
                     </div>
                 `;
@@ -469,7 +500,7 @@ document.getElementById('gate-review-btn').addEventListener('click', async funct
         statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Submit for Gate Review';
+        btn.textContent = T.gate_btn;
     }
 });
 
@@ -478,13 +509,13 @@ document.getElementById('generate-optimization-btn').addEventListener('click', a
     const btn = this;
     const statusDiv = document.getElementById('optimization-status');
 
-    if (!confirm('This will generate all Optimization phase deliverables (Value Stream Map, Waste Analysis, Quick Wins, KPI Dashboard). Continue?')) {
+    if (!confirm(T.confirm_optimization)) {
         return;
     }
 
     btn.disabled = true;
-    btn.textContent = 'Generating...';
-    statusDiv.innerHTML = '<div class="alert alert-info">Generating optimization deliverables... This may take a minute.</div>';
+    btn.textContent = T.generating;
+    statusDiv.innerHTML = `<div class="alert alert-info">${T.generating_optimization}</div>`;
 
     try {
         const response = await fetch(`/api/projects/${PROJECT_ID}/generate-optimization`, {
@@ -493,9 +524,9 @@ document.getElementById('generate-optimization-btn').addEventListener('click', a
         const data = await response.json();
 
         if (response.ok) {
-            const completeness = data.overall_completeness || 0;
-            const deliverableCount = Object.keys(data.files_saved || {}).length;
-            statusDiv.innerHTML = `<div class="alert alert-success">✓ Generated ${deliverableCount} optimization deliverables! Overall: ${completeness}%</div>`;
+            const count = Object.keys(data.files_saved || {}).length;
+            const pct = data.overall_completeness || 0;
+            statusDiv.innerHTML = `<div class="alert alert-success">✓ ${T.optimization_success.replace('{count}', count).replace('{pct}', pct)}</div>`;
             setTimeout(() => location.reload(), 3000);
         } else {
             statusDiv.innerHTML = `<div class="alert alert-error">Error: ${data.error}</div>`;
@@ -504,7 +535,7 @@ document.getElementById('generate-optimization-btn').addEventListener('click', a
         statusDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Generate Optimization Deliverables';
+        btn.textContent = T.optimization_btn;
     }
 });
 </script>

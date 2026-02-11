@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Process Document Agent{% endblock %}</title>
+    <title>{% block title %}{{ t('nav.brand') }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
@@ -11,11 +11,19 @@
     <nav class="navbar">
         <div class="container">
             <div class="nav-brand">
-                <a href="/">📋 Process Document Agent</a>
+                <a href="/">{{ t('nav.brand') }}</a>
             </div>
             <div class="nav-links">
-                <a href="/">Projects</a>
-                <a href="#" id="new-project-btn">+ New Project</a>
+                <a href="/">{{ t('nav.projects') }}</a>
+                <a href="#" id="new-project-btn">{{ t('nav.new_project') }}</a>
+                <div class="lang-switcher">
+                    <a href="/set-language/en" class="lang-flag {% if current_lang == 'en' %}active{% endif %}" title="English">
+                        <span class="flag-icon flag-en">EN</span>
+                    </a>
+                    <a href="/set-language/nl" class="lang-flag {% if current_lang == 'nl' %}active{% endif %}" title="Nederlands">
+                        <span class="flag-icon flag-nl">NL</span>
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
@@ -26,7 +34,7 @@
 
     <footer class="footer">
         <div class="container">
-            <p>&copy; 2026 Process Document Agent | Intelligent Automation Roadmap System</p>
+            <p>{{ t('footer.text') }}</p>
         </div>
     </footer>
 
@@ -34,17 +42,17 @@
     <div id="new-project-modal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>Create New Project</h2>
+            <h2>{{ t('modal.create_title') }}</h2>
             <form id="new-project-form">
                 <div class="form-group">
-                    <label for="project_name">Project Name</label>
-                    <input type="text" id="project_name" name="project_name" required placeholder="e.g., Invoice Processing Automation">
+                    <label for="project_name">{{ t('modal.project_name') }}</label>
+                    <input type="text" id="project_name" name="project_name" required placeholder="{{ t('modal.project_name_placeholder') }}">
                 </div>
                 <div class="form-group">
-                    <label for="description">Description (optional)</label>
-                    <textarea id="description" name="description" rows="3" placeholder="Brief description of the process..."></textarea>
+                    <label for="description">{{ t('modal.description') }}</label>
+                    <textarea id="description" name="description" rows="3" placeholder="{{ t('modal.description_placeholder') }}"></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">Create Project</button>
+                <button type="submit" class="btn btn-primary">{{ t('modal.create_btn') }}</button>
             </form>
         </div>
     </div>

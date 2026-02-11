@@ -8,8 +8,9 @@ Author: Intelligent Automation Agent
 """
 
 import json
+import shutil
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 from agent.system_architecture_generator import SystemArchitectureGenerator
@@ -19,12 +20,30 @@ from agent.data_flow_generator import DataFlowGenerator
 class DigitizationDeliverablesOrchestrator:
     """Orchestrates Stage 7 Digitization Phase deliverable generation."""
 
+    PHASE_DIR = "3-digitization"
+
     def __init__(self, projects_root: str = "projects"):
         self.projects_root = Path(projects_root)
         self.arch_gen = SystemArchitectureGenerator(projects_root)
         self.data_flow_gen = DataFlowGenerator(projects_root)
 
-    def generate_all_deliverables(self, project_id: str) -> Dict[str, Any]:
+    def _copy_to_lang_dirs(self, project_id: str, filename: str, languages: List[str]) -> Dict[str, str]:
+        """Copy a generated deliverable file to each language subdirectory."""
+        base_dir = self.projects_root / project_id / "deliverables" / self.PHASE_DIR
+        source = base_dir / filename
+        paths = {}
+        if not source.exists():
+            return paths
+        for lang in languages:
+            lang_dir = base_dir / lang
+            lang_dir.mkdir(parents=True, exist_ok=True)
+            dest = lang_dir / filename
+            shutil.copy2(str(source), str(dest))
+            paths[lang] = str(dest)
+        source.unlink(missing_ok=True)
+        return paths
+
+    def generate_all_deliverables(self, project_id: str, languages: Optional[List[str]] = None) -> Dict[str, Any]:
         """Generate all digitization deliverables."""
         print(f"\n🚀 Generating Stage 7: Digitization Deliverables")
         print(f"   Project: {project_id}")
@@ -47,8 +66,13 @@ class DigitizationDeliverablesOrchestrator:
             results["deliverables"]["system_architecture"] = arch_result
             results["completeness_by_deliverable"]["system_architecture"] = arch_result.get("completeness", {}).get("overall", 0)
             if arch_result.get("status") in ["success", "partial"]:
-                file_path = self.projects_root / project_id / "deliverables" / "3-digitization" / "system_architecture.json"
-                results["files_saved"]["system_architecture"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "system_architecture.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"system_architecture_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "system_architecture.json"
+                    results["files_saved"]["system_architecture"] = str(file_path)
                 print(f"   ✓ System Architecture completed")
         except Exception as e:
             print(f"   ✗ System Architecture error: {str(e)}")
@@ -61,8 +85,13 @@ class DigitizationDeliverablesOrchestrator:
             results["deliverables"]["data_flow"] = df_result
             results["completeness_by_deliverable"]["data_flow"] = df_result.get("completeness", {}).get("overall", 0)
             if df_result.get("status") in ["success", "partial"]:
-                file_path = self.projects_root / project_id / "deliverables" / "3-digitization" / "data_flow_diagram.json"
-                results["files_saved"]["data_flow"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "data_flow_diagram.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"data_flow_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "data_flow_diagram.json"
+                    results["files_saved"]["data_flow"] = str(file_path)
                 print(f"   ✓ Data Flow Diagram completed")
         except Exception as e:
             print(f"   ✗ Data Flow Diagram error: {str(e)}")

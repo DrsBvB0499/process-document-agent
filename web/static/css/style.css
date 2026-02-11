@@ -85,6 +85,54 @@ body {
     color: var(--primary-color);
 }
 
+/* Language Switcher */
+.lang-switcher {
+    display: flex;
+    gap: 0.4rem;
+    margin-left: 0.5rem;
+    padding-left: 1rem;
+    border-left: 1px solid var(--border-color);
+    align-items: center;
+}
+
+.lang-flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-decoration: none;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    border: 1px solid var(--border-color);
+    color: #fff;
+    letter-spacing: 0.5px;
+}
+
+.lang-flag:hover {
+    opacity: 0.85;
+    color: #fff;
+}
+
+.lang-flag.active {
+    opacity: 1;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.flag-en {
+    background: #012169;
+}
+
+.flag-nl {
+    background: linear-gradient(to bottom, #ae1c28 33%, #fff 33% 66%, #21468b 66%);
+    color: #21468b !important;
+    text-shadow: 0 0 2px rgba(255,255,255,0.8);
+}
+
 /* ==================== MAIN CONTENT ==================== */
 
 main.container {
@@ -858,6 +906,37 @@ input[type="file"] {
     text-align: center;
     color: var(--text-secondary);
     font-size: 0.9rem;
+}
+
+/* Language filter & badge */
+.deliverables-lang-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.lang-filter-btn {
+    opacity: 0.6;
+}
+
+.lang-filter-btn.active {
+    opacity: 1;
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.lang-badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
 }
 
 /* ==================== LOADING ==================== */

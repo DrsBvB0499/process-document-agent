@@ -11,6 +11,7 @@ Author: Intelligent Automation Agent
 """
 
 import json
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -31,6 +32,8 @@ class AutonomizationDeliverablesOrchestrator:
       projects/{project_id}/deliverables/5-autonomization/
     """
 
+    PHASE_DIR = "5-autonomization"
+
     def __init__(self, projects_root: str = "projects"):
         """
         Initialize the orchestrator.
@@ -44,7 +47,23 @@ class AutonomizationDeliverablesOrchestrator:
         self.ai_gen = AIOpportunitiesGenerator(projects_root)
         self.healing_gen = SelfHealingGenerator(projects_root)
 
-    def generate_all_deliverables(self, project_id: str) -> Dict[str, Any]:
+    def _copy_to_lang_dirs(self, project_id: str, filename: str, languages: List[str]) -> Dict[str, str]:
+        """Copy a generated deliverable file to each language subdirectory."""
+        base_dir = self.projects_root / project_id / "deliverables" / self.PHASE_DIR
+        source = base_dir / filename
+        paths = {}
+        if not source.exists():
+            return paths
+        for lang in languages:
+            lang_dir = base_dir / lang
+            lang_dir.mkdir(parents=True, exist_ok=True)
+            dest = lang_dir / filename
+            shutil.copy2(str(source), str(dest))
+            paths[lang] = str(dest)
+        source.unlink(missing_ok=True)
+        return paths
+
+    def generate_all_deliverables(self, project_id: str, languages: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Generate all autonomization deliverables from knowledge base.
 
@@ -112,8 +131,13 @@ class AutonomizationDeliverablesOrchestrator:
                     1 for o in ai_result.get("opportunities", [])
                     if o.get("expected_performance", {}).get("confidence_level") == "high"
                 )
-                file_path = self.projects_root / project_id / "deliverables" / "5-autonomization" / "ai_ml_opportunities.json"
-                results["files_saved"]["ai_ml_opportunities"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "ai_ml_opportunities.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"ai_ml_opportunities_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "ai_ml_opportunities.json"
+                    results["files_saved"]["ai_ml_opportunities"] = str(file_path)
                 print(f"   ✓ AI/ML Opportunities identified ({opportunities_count} total, {high_confidence} high confidence)")
                 print(f"   💰 LLM Cost: ${ai_result.get('llm_cost_usd', 0.0):.4f}")
             else:
@@ -142,8 +166,13 @@ class AutonomizationDeliverablesOrchestrator:
                     1 for p in healing_result.get("healing_patterns", [])
                     if p.get("impact") == "critical"
                 )
-                file_path = self.projects_root / project_id / "deliverables" / "5-autonomization" / "self_healing_design.json"
-                results["files_saved"]["self_healing_design"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "self_healing_design.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"self_healing_design_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "self_healing_design.json"
+                    results["files_saved"]["self_healing_design"] = str(file_path)
                 print(f"   ✓ Self-Healing Design completed ({patterns_count} patterns, {critical_patterns} critical)")
                 print(f"   💰 LLM Cost: ${healing_result.get('llm_cost_usd', 0.0):.4f}")
             else:

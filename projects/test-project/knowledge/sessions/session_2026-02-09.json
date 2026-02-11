@@ -1,9 +1,0 @@
-[
-  {
-    "timestamp": "2026-02-09T13:46:34.697573Z",
-    "user_id": "test@example.com",
-    "user_role": "sme",
-    "user_message": "Our invoice process handles about 600 invoices a day, split across 3 approval levels.",
-    "agent_response": "[MOCK RESPONSE] You are a consultant gathering information for process improvement.\n\nUSER ROLE: technical | DEPTH: tactical\n\nUSER'S LAST MESSAGE:\n\"Our invoice process handles about 600 invoices a day, split across 3 ..."
-  }
-]

@@ -1,44 +1,44 @@
 {% extends "base.html" %}
 
-{% block title %}Chat - {{ project.project_name }}{% endblock %}
+{% block title %}{{ t('chat.title') }} - {{ project.project_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>💬 Conversation</h1>
+        <h1>💬 {{ t('chat.title') }}</h1>
         <p class="subtitle">{{ project.project_name }}</p>
     </div>
     <div class="header-actions">
-        <a href="/project/{{ project_id }}" class="btn btn-secondary">← Back to Dashboard</a>
+        <a href="/project/{{ project_id }}" class="btn btn-secondary">← {{ t('chat.back') }}</a>
     </div>
 </div>
 
 {% if kb_facts == 0 %}
 <div class="alert alert-warning">
-    ⚠️ <strong>No knowledge base found!</strong> The agent cannot answer questions about your documents until you process them.
-    <a href="/project/{{ project_id }}" style="text-decoration: underline;">Go to Dashboard</a> and click "Process Files" first.
+    ⚠️ <strong>{{ t('chat.no_kb_warning') }}</strong> {{ t('chat.no_kb_hint') }}
+    <a href="/project/{{ project_id }}" style="text-decoration: underline;">{{ t('chat.go_dashboard') }}</a> {{ t('chat.process_first') }}
 </div>
 {% endif %}
 
 <div class="chat-container">
     <!-- User Role Selector -->
     <div class="chat-sidebar">
-        <h3>Your Role</h3>
+        <h3>{{ t('chat.your_role') }}</h3>
         <select id="user-role" class="form-control">
-            <option value="business_analyst">Business Analyst</option>
-            <option value="process_owner">Process Owner</option>
-            <option value="sme">Subject Matter Expert (SME)</option>
-            <option value="developer">Developer</option>
+            <option value="business_analyst">{{ t('chat.role_ba') }}</option>
+            <option value="process_owner">{{ t('chat.role_po') }}</option>
+            <option value="sme">{{ t('chat.role_sme') }}</option>
+            <option value="developer">{{ t('chat.role_dev') }}</option>
         </select>
 
         <div class="chat-info">
-            <h4>About This Chat</h4>
-            <p>The agent will ask intelligent questions based on gaps in the knowledge base. It already knows what's in your uploaded documents.</p>
+            <h4>{{ t('chat.about_title') }}</h4>
+            <p>{{ t('chat.about_desc') }}</p>
             <ul>
-                <li>✅ Knowledge-first approach</li>
-                <li>✅ Role-aware questions</li>
-                <li>✅ Gap-guided interviews</li>
-                <li>✅ Session logging</li>
+                <li>✅ {{ t('chat.feature_knowledge') }}</li>
+                <li>✅ {{ t('chat.feature_role') }}</li>
+                <li>✅ {{ t('chat.feature_gap') }}</li>
+                <li>✅ {{ t('chat.feature_session') }}</li>
             </ul>
         </div>
     </div>
@@ -57,7 +57,7 @@
                 </div>
                 <div class="message agent-message">
                     <div class="message-header">
-                        <span class="message-author">🤖 Agent</span>
+                        <span class="message-author">🤖 {{ t('chat.agent') }}</span>
                         <span class="message-time">{{ turn.timestamp.split('T')[1].split('.')[0] if 'T' in turn.timestamp else turn.timestamp }}</span>
                     </div>
                     <div class="message-content">{{ turn.agent_response }}</div>
@@ -66,8 +66,8 @@
             {% else %}
             <div class="chat-empty">
                 <div class="empty-icon">💬</div>
-                <h3>Start a Conversation</h3>
-                <p>Ask me about the process, or let me guide you through filling in knowledge gaps.</p>
+                <h3>{{ t('chat.empty_title') }}</h3>
+                <p>{{ t('chat.empty_desc') }}</p>
             </div>
             {% endif %}
         </div>
@@ -77,11 +77,11 @@
             <input
                 type="text"
                 id="message-input"
-                placeholder="Type your message..."
+                placeholder="{{ t('chat.placeholder') }}"
                 autocomplete="off"
                 required
             >
-            <button type="submit" class="btn btn-primary">Send</button>
+            <button type="submit" class="btn btn-primary">{{ t('chat.send') }}</button>
         </form>
     </div>
 </div>
@@ -91,6 +91,10 @@
 {% block extra_js %}
 <script>
 const PROJECT_ID = "{{ project_id }}";
+const CHAT_T = {
+    you: "{{ t('chat.you') }}",
+    agent: "{{ t('chat.agent') }}"
+};
 const chatMessages = document.getElementById('chat-messages');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message-input');
@@ -111,7 +115,7 @@ function addMessage(content, isUser = false) {
 
     messageDiv.innerHTML = `
         <div class="message-header">
-            <span class="message-author">${isUser ? 'You' : '🤖 Agent'}</span>
+            <span class="message-author">${isUser ? CHAT_T.you : '🤖 ' + CHAT_T.agent}</span>
             <span class="message-time">${time}</span>
         </div>
         <div class="message-content">${content}</div>
@@ -145,7 +149,7 @@ chatForm.addEventListener('submit', async function(e) {
     typingDiv.className = 'message agent-message typing-indicator';
     typingDiv.innerHTML = `
         <div class="message-header">
-            <span class="message-author">🤖 Agent</span>
+            <span class="message-author">🤖 ${CHAT_T.agent}</span>
         </div>
         <div class="message-content">
             <span class="typing-dot"></span>
@@ -197,7 +201,7 @@ async function autoStartConversation() {
     typingDiv.className = 'message agent-message typing-indicator';
     typingDiv.innerHTML = `
         <div class="message-header">
-            <span class="message-author">🤖 Agent</span>
+            <span class="message-author">🤖 ${CHAT_T.agent}</span>
         </div>
         <div class="message-content">
             <span class="typing-dot"></span>

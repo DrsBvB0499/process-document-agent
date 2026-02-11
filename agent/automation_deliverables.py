@@ -11,6 +11,7 @@ Author: Intelligent Automation Agent
 """
 
 import json
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -31,6 +32,8 @@ class AutomationDeliverablesOrchestrator:
       projects/{project_id}/deliverables/4-automation/
     """
 
+    PHASE_DIR = "4-automation"
+
     def __init__(self, projects_root: str = "projects"):
         """
         Initialize the orchestrator.
@@ -44,7 +47,23 @@ class AutomationDeliverablesOrchestrator:
         self.candidates_gen = AutomationCandidatesGenerator(projects_root)
         self.roadmap_gen = AutomationRoadmapGenerator(projects_root)
 
-    def generate_all_deliverables(self, project_id: str) -> Dict[str, Any]:
+    def _copy_to_lang_dirs(self, project_id: str, filename: str, languages: List[str]) -> Dict[str, str]:
+        """Copy a generated deliverable file to each language subdirectory."""
+        base_dir = self.projects_root / project_id / "deliverables" / self.PHASE_DIR
+        source = base_dir / filename
+        paths = {}
+        if not source.exists():
+            return paths
+        for lang in languages:
+            lang_dir = base_dir / lang
+            lang_dir.mkdir(parents=True, exist_ok=True)
+            dest = lang_dir / filename
+            shutil.copy2(str(source), str(dest))
+            paths[lang] = str(dest)
+        source.unlink(missing_ok=True)
+        return paths
+
+    def generate_all_deliverables(self, project_id: str, languages: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Generate all automation deliverables from knowledge base.
 
@@ -112,8 +131,13 @@ class AutomationDeliverablesOrchestrator:
                     1 for c in candidates_result.get("candidates", [])
                     if c.get("automation_score", 0) >= 70
                 )
-                file_path = self.projects_root / project_id / "deliverables" / "4-automation" / "automation_candidates.json"
-                results["files_saved"]["automation_candidates"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "automation_candidates.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"automation_candidates_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "automation_candidates.json"
+                    results["files_saved"]["automation_candidates"] = str(file_path)
                 print(f"   ✓ Automation Candidates completed ({candidates_count} total, {high_priority} high priority)")
                 print(f"   💰 LLM Cost: ${candidates_result.get('llm_cost_usd', 0.0):.4f}")
             else:
@@ -139,8 +163,13 @@ class AutomationDeliverablesOrchestrator:
             if roadmap_result.get("status") in ["success", "partial"]:
                 phases_count = len(roadmap_result.get("roadmap", {}).get("phases", []))
                 duration = roadmap_result.get("roadmap", {}).get("program_summary", {}).get("total_duration_months", 0)
-                file_path = self.projects_root / project_id / "deliverables" / "4-automation" / "implementation_roadmap.json"
-                results["files_saved"]["implementation_roadmap"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "implementation_roadmap.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"implementation_roadmap_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "implementation_roadmap.json"
+                    results["files_saved"]["implementation_roadmap"] = str(file_path)
                 print(f"   ✓ Implementation Roadmap completed ({phases_count} phases, {duration} months)")
                 print(f"   💰 LLM Cost: ${roadmap_result.get('llm_cost_usd', 0.0):.4f}")
             else:

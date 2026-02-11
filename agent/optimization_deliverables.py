@@ -13,6 +13,7 @@ Author: Intelligent Automation Agent
 """
 
 import json
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
@@ -37,6 +38,8 @@ class OptimizationDeliverablesOrchestrator:
       projects/{project_id}/deliverables/2-optimization/
     """
 
+    PHASE_DIR = "2-optimization"
+
     def __init__(self, projects_root: str = "projects"):
         """
         Initialize the orchestrator.
@@ -52,7 +55,23 @@ class OptimizationDeliverablesOrchestrator:
         self.quick_wins_gen = QuickWinsGenerator(projects_root)
         self.kpi_gen = KPIDashboardGenerator(projects_root)
 
-    def generate_all_deliverables(self, project_id: str) -> Dict[str, Any]:
+    def _copy_to_lang_dirs(self, project_id: str, filename: str, languages: List[str]) -> Dict[str, str]:
+        """Copy a generated deliverable file to each language subdirectory."""
+        base_dir = self.projects_root / project_id / "deliverables" / self.PHASE_DIR
+        source = base_dir / filename
+        paths = {}
+        if not source.exists():
+            return paths
+        for lang in languages:
+            lang_dir = base_dir / lang
+            lang_dir.mkdir(parents=True, exist_ok=True)
+            dest = lang_dir / filename
+            shutil.copy2(str(source), str(dest))
+            paths[lang] = str(dest)
+        source.unlink(missing_ok=True)
+        return paths
+
+    def generate_all_deliverables(self, project_id: str, languages: Optional[List[str]] = None) -> Dict[str, Any]:
         """
         Generate all 4 optimization deliverables from knowledge base.
 
@@ -106,8 +125,13 @@ class OptimizationDeliverablesOrchestrator:
             results["completeness_by_deliverable"]["value_stream"] = vsm_result.get("completeness", {}).get("overall", 0)
 
             if vsm_result.get("status") == "success" or vsm_result.get("status") == "partial":
-                file_path = self.projects_root / project_id / "deliverables" / "2-optimization" / "value_stream_map.json"
-                results["files_saved"]["value_stream"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "value_stream_map.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"value_stream_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "value_stream_map.json"
+                    results["files_saved"]["value_stream"] = str(file_path)
                 va_ratio = vsm_result.get("va_ratio", 0)
                 print(f"   ✓ Value Stream Map completed (VA Ratio: {va_ratio}%)")
             else:
@@ -125,8 +149,13 @@ class OptimizationDeliverablesOrchestrator:
             results["completeness_by_deliverable"]["waste_analysis"] = waste_result.get("completeness", {}).get("overall", 0)
 
             if waste_result.get("status") == "success" or waste_result.get("status") == "partial":
-                file_path = self.projects_root / project_id / "deliverables" / "2-optimization" / "waste_analysis.json"
-                results["files_saved"]["waste_analysis"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "waste_analysis.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"waste_analysis_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "waste_analysis.json"
+                    results["files_saved"]["waste_analysis"] = str(file_path)
                 total_waste = waste_result.get("total_waste_instances", 0)
                 print(f"   ✓ Waste Analysis completed ({total_waste} waste instances identified)")
             else:
@@ -144,8 +173,13 @@ class OptimizationDeliverablesOrchestrator:
             results["completeness_by_deliverable"]["quick_wins"] = qw_result.get("completeness", {}).get("overall", 0)
 
             if qw_result.get("status") == "success" or qw_result.get("status") == "partial":
-                file_path = self.projects_root / project_id / "deliverables" / "2-optimization" / "quick_wins.json"
-                results["files_saved"]["quick_wins"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "quick_wins.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"quick_wins_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "quick_wins.json"
+                    results["files_saved"]["quick_wins"] = str(file_path)
                 qw_count = qw_result.get("summary", {}).get("total_quick_wins", 0)
                 high_priority = qw_result.get("summary", {}).get("high_priority_count", 0)
                 print(f"   ✓ Quick Wins identified ({qw_count} total, {high_priority} high priority)")
@@ -164,8 +198,13 @@ class OptimizationDeliverablesOrchestrator:
             results["completeness_by_deliverable"]["kpi_dashboard"] = kpi_result.get("completeness", {}).get("overall", 0)
 
             if kpi_result.get("status") == "success" or kpi_result.get("status") == "partial":
-                file_path = self.projects_root / project_id / "deliverables" / "2-optimization" / "kpi_dashboard.json"
-                results["files_saved"]["kpi_dashboard"] = str(file_path)
+                if languages:
+                    lang_paths = self._copy_to_lang_dirs(project_id, "kpi_dashboard.json", languages)
+                    for lang, path in lang_paths.items():
+                        results["files_saved"][f"kpi_dashboard_{lang}"] = path
+                else:
+                    file_path = self.projects_root / project_id / "deliverables" / self.PHASE_DIR / "kpi_dashboard.json"
+                    results["files_saved"]["kpi_dashboard"] = str(file_path)
                 kpi_count = kpi_result.get("kpi_dashboard", {}).get("summary", {}).get("total_kpis", 0)
                 print(f"   ✓ KPI Dashboard completed ({kpi_count} KPIs defined)")
             else:
