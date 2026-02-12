@@ -277,14 +277,43 @@ Phase 5: AUTONOMIZATION (🔄 Future)
 - [ ] **Advanced Visualizations**: Mermaid rendering in browser
 - [ ] **Mobile App**: Native mobile interface
 
-## 🧪 Testing
+## 🧪 Running & Testing
 
-### Integration Tests
+### Running the Web Interface
 ```bash
-# Test Stages 1-3
+# Windows:
+start_web.bat
+
+# macOS/Linux:
+chmod +x start_web.sh
+./start_web.sh
+
+# Or run directly:
+python web/server.py
+```
+Then open **http://localhost:5000** in your browser.
+
+### Running the CLI
+```bash
+# Create a new project
+python cli.py create "My Process Automation"
+
+# List all projects
+python cli.py list
+
+# Check project status
+python cli.py status <project-id>
+
+# Inspect project details
+python cli.py inspect <project-id>
+```
+
+### Running Integration Tests
+```bash
+# Test Stages 1-3 (project creation, knowledge processing, gap analysis, conversation)
 python test_integration_1_to_3.py
 
-# Test complete workflow (Stages 1-4)
+# Test complete workflow including Stage 4 (+ standardization deliverables)
 python test_integration_1_to_4.py
 ```
 

@@ -85,13 +85,30 @@ class ConversationAgent:
     # Completeness threshold for triggering deliverable generation
     GENERATION_THRESHOLD = 80
 
-    # Short confirmatory replies that signal "proceed with generation"
+    # Short replies that signal "proceed with generation" — includes both
+    # positive confirmations ("yes", "sure") and negative responses to
+    # pre-generation questions like "do you want to add/change anything?" ("no", "nope")
     CONFIRMATION_PATTERNS = [
+        # Positive confirmations
         "yes", "yeah", "yep", "sure", "go ahead", "do it", "proceed",
-        "generate", "that's it", "that's all", "nope", "no more",
-        "nothing else", "that's perfect", "looks good", "sounds good",
-        "perfect", "ok", "okay", "correct", "no changes", "nothing to add",
-        "let's go", "start", "make it", "create", "alright",
+        "generate", "that's perfect", "looks good", "sounds good",
+        "perfect", "ok", "okay", "correct", "let's go", "start",
+        "make it", "create", "alright",
+        # Negative responses to "want to add/change anything?" questions
+        "no", "nope", "no more", "nah", "no thanks", "not really",
+        "nothing", "nothing else", "nothing to add", "no changes",
+        "that's it", "that's all", "that was it", "no that's it",
+        "no that was it", "i'm good", "im good", "all good",
+        "that's fine", "we're good", "i don't think so",
+    ]
+
+    # Explicit generation requests — these bypass the completeness threshold
+    # because the user is directly asking to generate deliverables
+    EXPLICIT_GENERATION_PATTERNS = [
+        "generate", "create", "make it", "do it", "go ahead", "proceed",
+        "let's go", "start", "build it", "create it", "generate it",
+        "generate the", "create the", "make the", "just generate",
+        "just create", "just do it", "go for it",
     ]
 
     def handle_message(
@@ -215,7 +232,7 @@ class ConversationAgent:
         # Step 5: Check if we should trigger deliverable generation
         trigger = (
             message.strip() != "__START__"
-            and self._is_user_confirming_generation(message, overall_pct)
+            and self._is_user_confirming_generation(message, overall_pct, project_id)
         )
 
         # Step 6: Log conversation turn
@@ -466,7 +483,7 @@ Now write a similar greeting for this user and project. Keep it under 60 words.
         role = role_config.get("vocabulary", "technical")
         depth = role_config.get("depth", "tactical")
 
-        # Build readiness block for high-completeness scenarios
+        # Build readiness block based on completeness level
         if overall_pct >= self.GENERATION_THRESHOLD:
             readiness_block = f"""
 🎯 HIGH COMPLETENESS ({overall_pct}%) — WRAP-UP MODE:
@@ -475,12 +492,25 @@ Instead:
 1. Briefly summarize key facts gathered (2-3 bullet points)
 2. Tell the user we're at {overall_pct}% completeness — enough to generate deliverables
 3. Ask: "Shall I generate your deliverables now, or is there anything else you'd like to add?"
-If the user just confirmed or said "yes"/"sure"/"nope"/"that's it", respond:
+If the user just confirmed or said "yes"/"sure"/"nope"/"that's it"/"no", respond:
 "Generating your deliverables now..."
 DO NOT ask about tools, visualization, formatting, or other implementation details — those are already configured.
 """
         else:
-            readiness_block = ""
+            readiness_block = f"""
+🚨 CRITICAL: HANDLE GENERATION REQUESTS AT ANY COMPLETENESS 🚨
+Current completeness is {overall_pct}%. Even though we haven't gathered everything, the user
+CAN request to generate deliverables at any time. If the user:
+- Explicitly asks to generate/create a deliverable ("generate it", "create the flowchart", "go ahead")
+- Confirms after you offered to create something ("no that was it", "sure", "yes", "no")
+- Says they have nothing more to add ("that's it", "nothing else", "that was it")
+
+Then DO NOT ask another question or ask "anything else?". Instead respond with EXACTLY:
+"Generating your deliverables now..."
+
+The system will automatically start generation when it detects this intent. Your job is to
+confirm and stop asking — NOT to keep looping with more questions.
+"""
 
         # Build context about what's missing
         if focus_gap:
@@ -586,18 +616,78 @@ Now respond to the user's message following these rules. REMEMBER:
         text = text.strip()
         return text
 
-    def _is_user_confirming_generation(self, message: str, overall_pct: int) -> bool:
-        """Check if user is giving a short confirmatory reply when completeness is high.
+    def _is_user_confirming_generation(self, message: str, overall_pct: int, project_id: str = None) -> bool:
+        """Check if user wants to trigger deliverable generation.
 
-        Only returns True when overall completeness >= GENERATION_THRESHOLD
-        AND the message is a brief affirmative (≤ 8 words).
+        Two paths can trigger generation:
+        1. Explicit request: user says "generate", "create it", etc. — works at ANY completeness.
+        2. Confirmation: user says "yes", "no", "that's it" etc. after the agent offered
+           to generate — works when completeness >= threshold OR when the agent's last
+           message offered to generate/create deliverables.
         """
-        if overall_pct < self.GENERATION_THRESHOLD:
-            return False
         cleaned = message.strip().lower().rstrip("!.,;:")
         if len(cleaned.split()) > 8:
             return False
-        return any(pattern in cleaned for pattern in self.CONFIRMATION_PATTERNS)
+
+        # Path 1: Explicit generation request — bypass completeness threshold
+        if any(pattern in cleaned for pattern in self.EXPLICIT_GENERATION_PATTERNS):
+            return True
+
+        # Path 2: Confirmation pattern — check if context supports generation
+        is_confirmation = any(pattern in cleaned for pattern in self.CONFIRMATION_PATTERNS)
+        if not is_confirmation:
+            return False
+
+        # High completeness: always trigger on confirmation
+        if overall_pct >= self.GENERATION_THRESHOLD:
+            return True
+
+        # Lower completeness: only trigger if agent recently offered to generate
+        if project_id:
+            return self._agent_offered_generation(project_id)
+
+        return False
+
+    def _agent_offered_generation(self, project_id: str) -> bool:
+        """Check if the agent's recent messages offered to generate/create deliverables.
+
+        This detects the loop where the agent keeps saying 'I'll create the flowchart'
+        but the system never actually triggers generation.
+        """
+        session_data = self.get_session_history(project_id)
+        turns = session_data.get("turns", [])
+        if not turns:
+            return False
+
+        # Check the last 3 agent responses for generation-related language.
+        # This covers both explicit offers ("I'll create the flowchart") and
+        # pre-generation questions ("anything you want to add/change/highlight?")
+        generation_keywords = [
+            # Agent offering to create/generate
+            "i'll create", "i'll generate", "i'll proceed", "i'll build",
+            "let me create", "let me generate", "let me proceed",
+            "creating the", "generating the", "proceed with creating",
+            "shall i generate", "shall i create", "ready to generate",
+            # Pre-generation questions ("anything to add/change/highlight?")
+            "anything else", "anything to add", "anything to include",
+            "anything you want", "anything you'd like", "any other",
+            "any specific", "any changes", "any additions",
+            "want to emphasize", "want to highlight", "want to add",
+            "want to change", "want to include", "want to modify",
+            "before i proceed", "before i create", "before i generate",
+            "before we proceed", "before we generate",
+            "let me know if", "is there anything",
+        ]
+
+        recent_turns = turns[-3:]
+        offer_count = 0
+        for turn in recent_turns:
+            agent_resp = turn.get("agent_response", "").lower()
+            if any(kw in agent_resp for kw in generation_keywords):
+                offer_count += 1
+
+        # If the agent offered in at least 1 of the last 3 turns, treat confirmation as trigger
+        return offer_count >= 1
 
     def _log_conversation(
         self,
